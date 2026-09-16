@@ -1,9 +1,7 @@
 "use client";
 
 import { useState, useEffect, FormEvent } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { toast } from "sonner";
 import {
     Wrench,
     User,
@@ -13,7 +11,6 @@ import {
     CheckCircle2,
     ArrowRight,
     ShieldCheck,
-    Star,
     Sparkles
 } from "lucide-react";
 import { registerAction } from "../_actions/auth";
@@ -22,7 +19,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export default function RegisterPage() {
-    const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [mounted, setMounted] = useState(false);
@@ -33,7 +29,6 @@ export default function RegisterPage() {
         role: "CUSTOMER",
     });
 
-    
     useEffect(() => {
         setMounted(true);
     }, []);
@@ -43,17 +38,21 @@ export default function RegisterPage() {
         setLoading(true);
 
         try {
+
             const res = await registerAction(formData);
+            console.log("Register Response:", res);
 
             if (res.success) {
-                toast.success("Account created successfully! Please sign in.");
-                router.push("/login");
+
+                alert("Account created successfully! Please sign in.");
+                window.location.replace("/login");
             } else {
-                toast.error(res.message || "Failed to register");
+                alert(res.message || "Failed to register");
+                setLoading(false);
             }
         } catch (err) {
-            toast.error("Something went wrong!");
-        } finally {
+            console.error("Register Error:", err);
+            alert("Something went wrong! Please check your connection.");
             setLoading(false);
         }
     };
@@ -104,7 +103,7 @@ export default function RegisterPage() {
                 </div>
 
                 <div className="relative z-10 text-sm text-zinc-500">
-                    © FixItNow Platform. All rights reserved by Ebnu L Aahsan
+                    © FixItNow Platform. All rights reserved by Ebnul Ahsan
                 </div>
             </div>
 
