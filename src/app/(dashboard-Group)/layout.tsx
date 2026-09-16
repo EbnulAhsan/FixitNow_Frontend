@@ -9,7 +9,9 @@ import {
     CalendarCheck,
     Settings,
     LogOut,
-    Home
+    Home,
+    Clock,
+    CreditCard
 } from "lucide-react";
 import { logoutUser } from "@/service/logout";
 import { Button } from "@/components/ui/button";
@@ -21,9 +23,37 @@ export default function DashboardLayout({
 }) {
     const pathname = usePathname();
 
+
+    const isAdmin = pathname.startsWith("/admin");
+    const isTechnician = pathname.startsWith("/technician");
+
+
+    const getNavLinks = () => {
+        if (isAdmin) {
+            return [
+                { name: "Overview", href: "/admin-dashboard", icon: LayoutDashboard },
+                { name: "Manage Users", href: "/admin-dashboard/users", icon: Users },
+                { name: "Categories", href: "/admin-dashboard/categories", icon: Settings },
+            ];
+        }
+        if (isTechnician) {
+            return [
+                { name: "Overview", href: "/technician-dashboard", icon: LayoutDashboard },
+                { name: "Incoming Bookings", href: "/technician-dashboard/bookings", icon: CalendarCheck },
+                { name: "Availability", href: "/technician-dashboard/availability", icon: Clock },
+            ];
+        }
+        return [
+            { name: "Overview", href: "/customer-dashboard", icon: LayoutDashboard },
+            { name: "My Bookings", href: "/customer-dashboard/bookings", icon: CalendarCheck },
+            { name: "Payment History", href: "/customer-dashboard/payments", icon: CreditCard },
+        ];
+    };
+
+    const navLinks = getNavLinks();
+
     return (
         <div className="min-h-screen bg-zinc-950 text-white flex">
-
             {/* Sidebar */}
             <aside className="w-64 border-r border-white/10 bg-zinc-900/50 backdrop-blur-xl hidden md:flex flex-col justify-between p-6">
                 <div className="space-y-8">
@@ -38,19 +68,36 @@ export default function DashboardLayout({
                     </Link>
 
                     {/* Nav Links */}
-                    <nav className="space-y-2">
+                    <nav className="space-y-1.5">
                         <Link
                             href="/"
-                            className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-zinc-400 hover:bg-white/5 hover:text-white transition-colors"
+                            className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-zinc-400 hover:bg-white/5 hover:text-white transition-colors"
                         >
                             <Home className="h-4 w-4" /> Back to Home
                         </Link>
-                        <Link
-                            href={pathname.includes("admin") ? "/admin-dashboard" : pathname.includes("technician") ? "/technician-dashboard" : "/customer-dashboard"}
-                            className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
-                        >
-                            <LayoutDashboard className="h-4 w-4" /> Dashboard Overview
-                        </Link>
+
+                        <div className="pt-2 pb-1">
+                            <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 px-4">
+                                {isAdmin ? "Admin Menu" : isTechnician ? "Technician Menu" : "Customer Menu"}
+                            </span>
+                        </div>
+
+                        {navLinks.map((item) => {
+                            const Icon = item.icon;
+                            const isActive = pathname === item.href;
+                            return (
+                                <Link
+                                    key={item.href}
+                                    href={item.href}
+                                    className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${isActive
+                                        ? "bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 shadow-[0_0_12px_rgba(6,182,212,0.15)]"
+                                        : "text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
+                                        }`}
+                                >
+                                    <Icon className="h-4 w-4" /> {item.name}
+                                </Link>
+                            );
+                        })}
                     </nav>
                 </div>
 
@@ -83,7 +130,6 @@ export default function DashboardLayout({
                     {children}
                 </div>
             </main>
-
         </div>
     );
 }
