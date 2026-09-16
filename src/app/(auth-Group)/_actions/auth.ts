@@ -1,54 +1,63 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 "use server";
-
-import axios from "axios";
-import { cookies } from "next/headers";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 
 export async function loginAction(formData: { email: string; password: string }) {
     try {
-        const res = await axios.post(`${API_BASE}/auth/login`, formData);
-        const data = res.data?.data;
 
-        if (data?.accessToken) {
-            const cookieStore = await cookies();
+        const BACKEND_URL = "http://localhost:5000/api/auth/login";
 
-            cookieStore.set("token", data.accessToken, {
-                httpOnly: false, // 
-                secure: process.env.NODE_ENV === "production",
-                sameSite: "lax",
-                path: "/",
-            });
+        console.log("Hitting Backend URL:", BACKEND_URL);
 
-            cookieStore.set("role", data.user.role, {
-                httpOnly: false,
-                secure: process.env.NODE_ENV === "production",
-                sameSite: "lax",
-                path: "/",
-            });
+        const response = await fetch(BACKEND_URL, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(formData),
+        });
 
-            return { success: true, user: data.user };
+        const data = await response.json();
+
+        if (!response.ok) {
+            return {
+                success: false,
+                message: data.message || "Invalid email or password",
+            };
         }
 
-        return { success: false, message: res.data?.message || "Login failed" };
-    } catch (error: any) {
-        return {
-            success: false,
-            message: error.response?.data?.message || "Invalid credentials",
-        };
-    }
-}
+        const accessToken = data.data?.accessToken || data.token;
 
-export async function registerAction(formData: any) {
-    try {
-        const res = await axios.post(`${API_BASE}/auth/register`, formData);
-        return { success: true, data: res.data };
-    } catch (error: any) {
+        if (!accessToken) {
+            return { success: false, message: "Token not received from server" };
+        }
+
+
+        let role = "CUSTOMER";
+        try {
+            const base64Url = accessToken.split(".")[1];
+            const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+            const jsonPayload = decodeURIComponent(
+                atob(base64)
+                    .split("")
+                    .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+                    .join("")
+            );
+            const decodedToken = JSON.parse(jsonPayload);
+            if (decodedToken.role) {
+                role = decodedToken.role;
+            }
+        } catch (e) {
+            console.error("Token decode error", e);
+        }
+
+        return {
+            success: true,
+            accessToken,
+            role,
+        };
+    } catch (error) {
         return {
             success: false,
-            message: error.response?.data?.message || "Registration failed",
+            message: "Server connection failed. Is the backend running?",
         };
     }
 }
