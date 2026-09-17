@@ -226,7 +226,7 @@ function PaymentContent() {
                     </div>
                 ) : intentError ? (
                     <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-center space-y-2">
-                        <p className="text-xs text-rose-400">{intentError}</p>
+                        <p className="text-xs text-rose-400 break-all ">{intentError}</p>
                         <Button
                             size="sm"
                             variant="outline"
