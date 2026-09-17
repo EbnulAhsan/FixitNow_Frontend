@@ -145,12 +145,26 @@ export default function TechnicianProfilePage() {
         try {
             const res = await createBookingAction({
                 technicianId: technician.id,
+                technicianName: technician.name,
                 date: selectedDate,
                 timeSlot: selectedSlot,
                 notes: notes,
             });
 
             if (res.success) {
+                const newBookingId = res.data?.id;
+                if (newBookingId && typeof window !== "undefined") {
+
+                    const techMap = JSON.parse(localStorage.getItem("technician_names_map") || "{}");
+                    techMap[newBookingId] = technician.name;
+                    localStorage.setItem("technician_names_map", JSON.stringify(techMap));
+
+
+                    const serviceMap = JSON.parse(localStorage.getItem("service_names_map") || "{}");
+                    serviceMap[newBookingId] = `${technician.role || technician.name + "'s Special"} Service`;
+                    localStorage.setItem("service_names_map", JSON.stringify(serviceMap));
+                }
+
                 alert(`Booking request submitted successfully for ${technician.name}!`);
                 window.location.replace("/customer-dashboard");
             } else {
@@ -162,7 +176,7 @@ export default function TechnicianProfilePage() {
         } finally {
             setSubmitting(false);
         }
-    }
+    };
 
     return (
         <div className="min-h-screen bg-zinc-950 text-white p-6 sm:p-12">

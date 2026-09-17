@@ -18,6 +18,7 @@ interface Booking {
     bookingDate?: string;
     date?: string;
     timeSlot?: string;
+    notes?: string;
     status: "REQUESTED" | "ACCEPTED" | "DECLINED" | "PAID" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
     service?: {
         title?: string;
@@ -76,6 +77,41 @@ export default function CustomerBookingsPage() {
         } finally {
             setCancellingId(null);
         }
+    };
+
+    const getTechName = (booking: Booking) => {
+        if (typeof window !== "undefined") {
+            const savedMap = JSON.parse(localStorage.getItem("technician_names_map") || "{}");
+            if (savedMap[booking.id]) {
+                return savedMap[booking.id];
+            }
+        }
+
+        if (booking.notes && booking.notes.includes("[Tech:")) {
+            const match = booking.notes.match(/\[Tech:\s*(.*?)\]/);
+            if (match && match[1]) return match[1];
+        }
+
+        return (
+            booking.service?.technician?.user?.name ||
+            booking.technicianName ||
+            "Rahim Technician"
+        );
+    };
+
+    const getServiceName = (booking: Booking) => {
+        if (typeof window !== "undefined") {
+            const serviceMap = JSON.parse(localStorage.getItem("service_names_map") || "{}");
+            if (serviceMap[booking.id]) {
+                return serviceMap[booking.id];
+            }
+        }
+        return (
+            booking.service?.title ||
+            booking.service?.name ||
+            booking.serviceName ||
+            "Home Repair Service"
+        );
     };
 
     const renderBadge = (status: Booking["status"]) => {
@@ -146,8 +182,7 @@ export default function CustomerBookingsPage() {
                             </thead>
                             <tbody className="divide-y divide-white/5">
                                 {bookings.map((booking) => {
-                                    const serviceTitle = booking.service?.title || booking.service?.name || booking.serviceName || "Home Repair Service";
-                                    const techName = booking.service?.technician?.user?.name || booking.technicianName || "Assigned Pro";
+                                    const techName = getTechName(booking);
                                     const rawDate = booking.bookingDate || booking.date;
                                     const canCancel = ["REQUESTED", "ACCEPTED"].includes(booking.status);
                                     const needsPayment = booking.status === "ACCEPTED";
@@ -156,9 +191,9 @@ export default function CustomerBookingsPage() {
                                     return (
                                         <tr key={booking.id} className="hover:bg-white/[0.02] transition-colors">
                                             <td className="px-6 py-4 font-medium text-white">
-                                                {serviceTitle}
+                                                {getServiceName(booking)}
                                             </td>
-                                            <td className="px-6 py-4 text-zinc-300">
+                                            <td className="px-6 py-4 text-zinc-200">
                                                 {techName}
                                             </td>
                                             <td className="px-6 py-4 text-zinc-400">
@@ -178,8 +213,8 @@ export default function CustomerBookingsPage() {
                                             </td>
                                             <td className="px-6 py-4 text-right space-x-2 whitespace-nowrap">
                                                 {needsPayment && (
-                                                    <Link href={`/dashboard/customer/bookings/${booking.id}/pay`}>
-                                                        <Button size="sm" className="h-8 bg-blue-600 hover:bg-blue-700 text-white text-xs gap-1.5">
+                                                    <Link href={`/payment?bookingId=${booking.id}`}>
+                                                        <Button size="sm" className="h-8 bg-blue-600 hover:bg-blue-700 text-white text-xs gap-1.5 shadow-md">
                                                             <CreditCard className="h-3.5 w-3.5" /> Pay Now
                                                         </Button>
                                                     </Link>

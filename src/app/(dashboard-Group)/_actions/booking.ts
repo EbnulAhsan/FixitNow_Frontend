@@ -14,7 +14,7 @@ export async function getCustomerBookingsAction() {
             return { success: false, message: "No token found", data: [] };
         }
 
-        // ব্যাকএন্ডে my-bookings চেক করা হচ্ছে, না থাকলে ফলব্যাক হিসেবে /api/bookings
+
         let response = await fetch("http://localhost:5000/api/bookings/my-bookings", {
             method: "GET",
             headers: {
@@ -63,6 +63,7 @@ export async function getCustomerBookingsAction() {
 export async function createBookingAction(payload: {
     serviceId?: string;
     technicianId?: string;
+    technicianName?: string;
     date: string;
     timeSlot: string;
     notes?: string;
@@ -78,15 +79,17 @@ export async function createBookingAction(payload: {
         const formattedBookingDate = new Date(`${payload.date}T10:00:00.000Z`).toISOString();
 
 
+        const combinedNotes = payload.technicianName
+            ? `[Tech: ${payload.technicianName}] ${payload.notes || ""}`.trim()
+            : payload.notes || "";
+
         const backendPayload = {
             serviceId: payload.serviceId || "bdc01934-3f9d-407f-8dea-b6725ec6b616",
             technicianId: "027a95d5-2eb0-4547-a642-0531ab6080d8",
             bookingDate: formattedBookingDate,
             timeSlot: payload.timeSlot,
-            notes: payload.notes || "",
+            notes: combinedNotes,
         };
-
-        console.log("Sending verified payload to backend:", backendPayload);
 
         const response = await fetch("http://localhost:5000/api/bookings", {
             method: "POST",
@@ -98,16 +101,8 @@ export async function createBookingAction(payload: {
         });
 
         const data = await response.json();
-        console.log("Backend response:", JSON.stringify(data, null, 2));
-
         if (!response.ok) {
-            let errorMsg = data.message || "Failed to create booking";
-            if (Array.isArray(data.errorDetails)) {
-                errorMsg = data.errorDetails.map((e: any) => e.message).join(", ");
-            } else if (typeof data.errorDetails === "string") {
-                errorMsg = data.errorDetails;
-            }
-            return { success: false, message: errorMsg };
+            return { success: false, message: data.message || "Failed to create booking" };
         }
 
         return { success: true, data: data.data || data };
