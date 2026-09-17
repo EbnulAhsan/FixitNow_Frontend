@@ -7,13 +7,11 @@ import {
     Clock,
     CreditCard,
     AlertCircle,
-    ArrowUpRight,
-    Loader2,
-    RefreshCw
+    RefreshCw,
+    ArrowLeft
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-import { getCustomerBookingsAction, cancelBookingAction } from "../_actions/booking";
+import { getCustomerBookingsAction, cancelBookingAction } from "../../_actions/booking";
 
 interface Booking {
     id: string;
@@ -21,14 +19,10 @@ interface Booking {
     date?: string;
     timeSlot?: string;
     status: "REQUESTED" | "ACCEPTED" | "DECLINED" | "PAID" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
-    totalAmount?: number;
     service?: {
-        id?: string;
         title?: string;
         name?: string;
-        price?: number;
         technician?: {
-            id?: string;
             user?: {
                 name?: string;
             };
@@ -38,18 +32,12 @@ interface Booking {
     technicianName?: string;
 }
 
-export default function CustomerDashboard() {
+export default function CustomerBookingsPage() {
     const [bookings, setBookings] = useState<Booking[]>([]);
     const [loading, setLoading] = useState(true);
     const [cancellingId, setCancellingId] = useState<string | null>(null);
 
-    const getAuthToken = () => {
-        if (typeof document === "undefined") return "";
-        const match = document.cookie.match(new RegExp("(^| )token=([^;]+)"));
-        return match ? match[2] : "";
-    };
-
-    const fetchBookings = async () => {
+    const loadBookings = async () => {
         setLoading(true);
         try {
             const res = await getCustomerBookingsAction();
@@ -67,10 +55,10 @@ export default function CustomerDashboard() {
     };
 
     useEffect(() => {
-        fetchBookings();
+        loadBookings();
     }, []);
 
-    const handleCancelBooking = async (bookingId: string) => {
+    const handleCancel = async (bookingId: string) => {
         if (!confirm("Are you sure you want to cancel this booking?")) return;
 
         setCancellingId(bookingId);
@@ -78,7 +66,7 @@ export default function CustomerDashboard() {
             const res = await cancelBookingAction(bookingId);
             if (res.success) {
                 alert("Booking cancelled successfully.");
-                fetchBookings();
+                loadBookings();
             } else {
                 alert(res.message || "Failed to cancel booking.");
             }
@@ -90,7 +78,7 @@ export default function CustomerDashboard() {
         }
     };
 
-    const renderStatusBadge = (status: Booking["status"]) => {
+    const renderBadge = (status: Booking["status"]) => {
         switch (status) {
             case "REQUESTED":
                 return <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/30">REQUESTED</span>;
@@ -107,76 +95,39 @@ export default function CustomerDashboard() {
             case "CANCELLED":
                 return <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-red-900/20 text-red-500 border border-red-800/30">CANCELLED</span>;
             default:
-                return <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-zinc-700/20 text-zinc-400">{status}</span>;
+                return <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-zinc-800 text-zinc-400">{status}</span>;
         }
     };
 
-    const totalBookings = bookings.length;
-    const activeServices = bookings.filter((b) => ["REQUESTED", "ACCEPTED", "PAID", "IN_PROGRESS"].includes(b.status)).length;
-    const completedServices = bookings.filter((b) => b.status === "COMPLETED").length;
-
     return (
-        <div className="space-y-8">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-6">
+            <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-3xl font-bold tracking-tight text-white">Welcome Back! 👋</h2>
-                    <p className="text-zinc-400 mt-1 text-sm">Manage your service bookings and track real-time job progress.</p>
+                    <h2 className="text-2xl font-bold tracking-tight text-white">Booking Management</h2>
+                    <p className="text-zinc-400 text-xs mt-1">Review live status, process payments, or cancel requests.</p>
                 </div>
-                <div className="flex items-center gap-3">
-                    <Button
-                        onClick={fetchBookings}
-                        variant="outline"
-                        size="sm"
-                        className="bg-white/5 border-white/10 hover:bg-white/10 text-zinc-300"
-                        disabled={loading}
-                    >
-                        <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} /> Refresh
-                    </Button>
-                    <Link href="/services">
-                        <Button size="sm" className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white gap-2">
-                            Book New Service <ArrowUpRight className="h-4 w-4" />
-                        </Button>
-                    </Link>
-                </div>
+                <Button
+                    onClick={loadBookings}
+                    variant="outline"
+                    size="sm"
+                    className="bg-white/5 border-white/10 hover:bg-white/10 text-zinc-300"
+                    disabled={loading}
+                >
+                    <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} /> Refresh
+                </Button>
             </div>
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="p-6 rounded-3xl border border-white/10 bg-zinc-900/40 backdrop-blur-xl">
-                    <p className="text-zinc-400 text-sm font-medium">Total Bookings</p>
-                    <h3 className="text-4xl font-bold mt-2 text-cyan-400">{totalBookings}</h3>
-                </div>
-                <div className="p-6 rounded-3xl border border-white/10 bg-zinc-900/40 backdrop-blur-xl">
-                    <p className="text-zinc-400 text-sm font-medium">Active Services</p>
-                    <h3 className="text-4xl font-bold mt-2 text-emerald-400">{activeServices}</h3>
-                </div>
-                <div className="p-6 rounded-3xl border border-white/10 bg-zinc-900/40 backdrop-blur-xl">
-                    <p className="text-zinc-400 text-sm font-medium">Completed</p>
-                    <h3 className="text-4xl font-bold mt-2 text-blue-400">{completedServices}</h3>
-                </div>
-            </div>
-
-            {/* Bookings Table Section */}
             <div className="rounded-3xl border border-white/10 bg-zinc-900/40 backdrop-blur-xl p-6">
-                <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-xl font-bold text-white">Recent Bookings</h3>
-                    <span className="text-xs text-zinc-500">Live Status Feed</span>
-                </div>
-
                 {loading ? (
-                    <div className="flex flex-col items-center justify-center py-16 text-zinc-400 space-y-3">
-                        <Loader2 className="h-8 w-8 animate-spin text-cyan-500" />
-                        <p className="text-sm">Fetching your booking details...</p>
+                    <div className="py-12 text-center text-zinc-400 text-sm">
+                        Loading your bookings...
                     </div>
                 ) : bookings.length === 0 ? (
-                    <div className="text-center py-12 border border-dashed border-white/10 rounded-2xl p-6">
-                        <AlertCircle className="h-10 w-10 text-zinc-500 mx-auto mb-3" />
-                        <p className="text-zinc-300 font-medium">No bookings found</p>
-                        <p className="text-zinc-500 text-sm mt-1 max-w-sm mx-auto">
-                            You haven&apos;t requested any home repair services yet. Check out available technicians to book.
-                        </p>
-                        <Link href="/technicians" className="mt-4 inline-block">
-                            <Button variant="outline" size="sm" className="bg-white/5 border-white/10 text-cyan-400 hover:bg-white/10">
+                    <div className="text-center py-12">
+                        <AlertCircle className="h-8 w-8 text-zinc-500 mx-auto mb-2" />
+                        <p className="text-sm font-medium text-zinc-300">No bookings available</p>
+                        <Link href="/technicians" className="mt-3 inline-block">
+                            <Button size="sm" variant="outline" className="bg-white/5 border-white/10 text-cyan-400 text-xs">
                                 Browse Technicians
                             </Button>
                         </Link>
@@ -195,41 +146,40 @@ export default function CustomerDashboard() {
                             </thead>
                             <tbody className="divide-y divide-white/5">
                                 {bookings.map((booking) => {
+                                    const serviceTitle = booking.service?.title || booking.service?.name || booking.serviceName || "Home Repair Service";
+                                    const techName = booking.service?.technician?.user?.name || booking.technicianName || "Assigned Pro";
+                                    const rawDate = booking.bookingDate || booking.date;
                                     const canCancel = ["REQUESTED", "ACCEPTED"].includes(booking.status);
                                     const needsPayment = booking.status === "ACCEPTED";
                                     const canReview = booking.status === "COMPLETED";
-
-                                    const serviceTitle = booking.service?.title || booking.service?.name || booking.serviceName || "Home Repair Service";
-                                    const techName = booking.service?.technician?.user?.name || booking.technicianName || "Rahim Technician";
-                                    const rawDate = booking.bookingDate || booking.date;
 
                                     return (
                                         <tr key={booking.id} className="hover:bg-white/[0.02] transition-colors">
                                             <td className="px-6 py-4 font-medium text-white">
                                                 {serviceTitle}
                                             </td>
-                                            <td className="px-6 py-4">
+                                            <td className="px-6 py-4 text-zinc-300">
                                                 {techName}
                                             </td>
                                             <td className="px-6 py-4 text-zinc-400">
-                                                <div className="flex items-center gap-1.5">
+                                                <div className="flex items-center gap-1.5 text-xs">
                                                     <Calendar className="h-3.5 w-3.5 text-zinc-500" />
                                                     <span>{rawDate ? new Date(rawDate).toLocaleDateString() : "TBD"}</span>
                                                 </div>
                                                 {booking.timeSlot && (
-                                                    <div className="flex items-center gap-1.5 text-xs text-zinc-500 mt-0.5">
+                                                    <div className="flex items-center gap-1.5 text-xs text-zinc-500 mt-1">
                                                         <Clock className="h-3 w-3" />
                                                         <span>{booking.timeSlot}</span>
                                                     </div>
                                                 )}
                                             </td>
                                             <td className="px-6 py-4">
-                                                {renderStatusBadge(booking.status)}
+                                                {renderBadge(booking.status)}
                                             </td>
                                             <td className="px-6 py-4 text-right space-x-2 whitespace-nowrap">
                                                 {needsPayment && (
                                                     <Link href={`/dashboard/customer/bookings/${booking.id}/pay`}>
-                                                        <Button size="sm" className="h-8 bg-blue-600 hover:bg-blue-700 text-white text-xs gap-1.5 shadow-md">
+                                                        <Button size="sm" className="h-8 bg-blue-600 hover:bg-blue-700 text-white text-xs gap-1.5">
                                                             <CreditCard className="h-3.5 w-3.5" /> Pay Now
                                                         </Button>
                                                     </Link>
@@ -238,7 +188,7 @@ export default function CustomerDashboard() {
                                                 {canReview && (
                                                     <Link href={`/reviews/new?bookingId=${booking.id}`}>
                                                         <Button size="sm" variant="outline" className="h-8 bg-white/5 border-white/10 hover:bg-white/10 text-amber-400 text-xs">
-                                                            Leave Review
+                                                            Review
                                                         </Button>
                                                     </Link>
                                                 )}
@@ -249,7 +199,7 @@ export default function CustomerDashboard() {
                                                         variant="ghost"
                                                         className="h-8 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 text-xs"
                                                         disabled={cancellingId === booking.id}
-                                                        onClick={() => handleCancelBooking(booking.id)}
+                                                        onClick={() => handleCancel(booking.id)}
                                                     >
                                                         {cancellingId === booking.id ? "Cancelling..." : "Cancel"}
                                                     </Button>
