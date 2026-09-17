@@ -10,10 +10,8 @@ import {
     useElements,
 } from "@stripe/react-stripe-js";
 import { CreditCard, ArrowLeft, ShieldCheck, Loader2, CheckCircle2, Lock } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { createPaymentIntentAction } from "../../(dashboard-Group)/_actions/payment";
+import { createPaymentIntentAction } from "@/app/(dashboard-Group)/_actions/payment";
 
-// আপনার .env.local থেকে পাবলিশেবল কি লোড করা, না পেলে টেস্ট কি ফলব্যাক
 const stripePromise = loadStripe(
     process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ||
     "pk_test_51P7qGvFhadYR9ZUf7X0iXyL2O94aBsmDq6Q4J5q1d1p5N9s0"
@@ -138,10 +136,10 @@ function StripeCheckoutForm({
                 </div>
             )}
 
-            <Button
+            <button
                 type="submit"
                 disabled={!stripe || isProcessing}
-                className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium rounded-xl flex items-center justify-center gap-2 text-sm shadow-lg shadow-blue-500/20"
+                className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 text-white font-medium rounded-xl flex items-center justify-center gap-2 text-sm shadow-lg shadow-blue-500/20 transition-all"
             >
                 {isProcessing ? (
                     <>
@@ -152,7 +150,7 @@ function StripeCheckoutForm({
                         <CreditCard className="h-4 w-4" /> Pay ৳ {amount}
                     </>
                 )}
-            </Button>
+            </button>
         </form>
     );
 }
@@ -176,9 +174,13 @@ function PaymentContent() {
         }
 
         if (typeof window !== "undefined") {
-            const serviceMap = JSON.parse(localStorage.getItem("service_names_map") || "{}");
-            if (serviceMap[bookingId]) {
-                setServiceName(serviceMap[bookingId]);
+            try {
+                const serviceMap = JSON.parse(localStorage.getItem("service_names_map") || "{}");
+                if (serviceMap[bookingId]) {
+                    setServiceName(serviceMap[bookingId]);
+                }
+            } catch (e) {
+                console.error(e);
             }
         }
 
@@ -187,10 +189,11 @@ function PaymentContent() {
             setIntentError(null);
             try {
                 const res = await createPaymentIntentAction(bookingId);
-                if (res.success && res.clientSecret) {
+                if (res?.success && res?.clientSecret) {
                     setClientSecret(res.clientSecret);
+                    if (res?.amount) setAmount(res.amount);
                 } else {
-                    setIntentError(res.message || "Failed to initialize Stripe PaymentIntent.");
+                    setIntentError(res?.message || "Failed to initialize Stripe PaymentIntent.");
                 }
             } catch (err) {
                 console.error("Payment setup error:", err);
@@ -226,15 +229,13 @@ function PaymentContent() {
                     </div>
                 ) : intentError ? (
                     <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-center space-y-2">
-                        <p className="text-xs text-rose-400 break-all ">{intentError}</p>
-                        <Button
-                            size="sm"
-                            variant="outline"
+                        <p className="text-xs text-rose-400 break-all">{intentError}</p>
+                        <button
                             onClick={() => window.location.reload()}
-                            className="bg-white/5 border-white/10 text-xs text-zinc-300"
+                            className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-xs text-zinc-300 hover:bg-white/10 transition"
                         >
                             Retry
-                        </Button>
+                        </button>
                     </div>
                 ) : clientSecret ? (
                     <Elements stripe={stripePromise} options={{ clientSecret }}>
@@ -261,4 +262,4 @@ export default function PaymentPage() {
             <PaymentContent />
         </Suspense>
     );
-}
+}   

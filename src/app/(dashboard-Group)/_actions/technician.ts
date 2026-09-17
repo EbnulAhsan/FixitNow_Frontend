@@ -3,6 +3,7 @@
 
 import { cookies } from "next/headers";
 
+// Technician-er assigned bookings fetch kora
 export async function getTechnicianBookingsAction() {
     try {
         const cookieStore = await cookies();
@@ -10,7 +11,7 @@ export async function getTechnicianBookingsAction() {
 
         if (!token) return { success: false, data: [] };
 
-        let response = await fetch("http://localhost:5000/api/technician/bookings", {
+        const response = await fetch("http://localhost:5000/api/bookings/technician-bookings", {
             method: "GET",
             headers: {
                 "Content-Type": "application/json",
@@ -19,23 +20,18 @@ export async function getTechnicianBookingsAction() {
             cache: "no-store",
         });
 
+        const data = await response.json();
+
         if (!response.ok) {
-            response = await fetch("http://localhost:5000/api/bookings", {
-                method: "GET",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
-                },
-                cache: "no-store",
-            });
+            return { success: false, message: data?.message || "Failed to fetch bookings", data: [] };
         }
 
-        const data = await response.json();
-        const list = Array.isArray(data)
-            ? data
-            : Array.isArray(data.data)
-                ? data.data
-                : data.data?.data || [];
+        let list = [];
+        if (Array.isArray(data)) list = data;
+        else if (Array.isArray(data?.data)) list = data.data;
+        else if (Array.isArray(data?.data?.data)) list = data.data.data;
+        else if (Array.isArray(data?.data?.result)) list = data.data.result;
+        else if (Array.isArray(data?.result)) list = data.result;
 
         return { success: true, data: list };
     } catch (error) {
@@ -44,17 +40,15 @@ export async function getTechnicianBookingsAction() {
     }
 }
 
-export async function updateBookingStatusAction(
-    bookingId: string,
-    status: "ACCEPTED" | "DECLINED" | "IN_PROGRESS" | "COMPLETED"
-) {
+// Technician booking status update kora (ACCEPTED, DECLINED, COMPLETED)
+export async function updateBookingStatusAction(bookingId: string, status: string) {
     try {
         const cookieStore = await cookies();
         const token = cookieStore.get("token")?.value;
 
         if (!token) return { success: false, message: "Unauthorized" };
 
-        const response = await fetch(`http://localhost:5000/api/bookings/${bookingId}/status`, {
+        let response = await fetch(`http://localhost:5000/api/bookings/${bookingId}/status`, {
             method: "PATCH",
             headers: {
                 "Content-Type": "application/json",
@@ -63,15 +57,8 @@ export async function updateBookingStatusAction(
             body: JSON.stringify({ status }),
         });
 
-        let resData: any = {};
-        try {
-            resData = await response.json();
-        } catch {
-            // empty response fallback
-        }
-
         if (!response.ok) {
-            const fallback = await fetch(`http://localhost:5000/api/bookings/${bookingId}`, {
+            response = await fetch(`http://localhost:5000/api/bookings/${bookingId}`, {
                 method: "PATCH",
                 headers: {
                     "Content-Type": "application/json",
@@ -79,15 +66,32 @@ export async function updateBookingStatusAction(
                 },
                 body: JSON.stringify({ status }),
             });
-
-            if (!fallback.ok) {
-                return { success: false, message: resData.message || "Failed to update booking status" };
-            }
         }
 
-        return { success: true };
+        const resData = await response.json();
+        return {
+            success: response.ok,
+            message: resData?.message || (response.ok ? "Status updated" : "Failed to update"),
+            data: resData?.data || resData,
+        };
     } catch (error) {
         console.error("Status update error:", error);
         return { success: false, message: "Server connection failed" };
+    }
+}
+
+// Public/Customer-er jonne sob technicians list kora (Dynamic ID pawar jonno)
+export async function getAllTechniciansAction() {
+    try {
+        const response = await fetch("http://localhost:5000/api/technicians", {
+            method: "GET",
+            cache: "no-store",
+        });
+        const data = await response.json();
+        const list = Array.isArray(data) ? data : data?.data || [];
+        return { success: response.ok, data: list };
+    } catch (error) {
+        console.error("Fetch technicians error:", error);
+        return { success: false, data: [] };
     }
 }
