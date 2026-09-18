@@ -2,6 +2,7 @@
 "use server";
 
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
@@ -9,7 +10,6 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:500
 export async function loginAction(formData: { email: string; password: string }) {
     try {
         const targetUrl = `${BACKEND_URL}/api/auth/login`;
-        console.log("Hitting Backend URL:", targetUrl);
 
         const response = await fetch(targetUrl, {
             method: "POST",
@@ -34,10 +34,14 @@ export async function loginAction(formData: { email: string; password: string })
             return { success: false, message: "Token not received from server" };
         }
 
-        // 1. First priority: Check role directly from backend response
-        let role = data.data?.user?.role || data.data?.role || data.user?.role;
+        // 1. Resolve role from backend response body
+        let role =
+            data.data?.user?.role ||
+            data.data?.role ||
+            data.user?.role ||
+            data.role;
 
-        // 2. Fallback: Decode JWT payload if not directly in response body
+        // 2. Fallback: Parse JWT payload
         if (!role) {
             try {
                 const base64Url = accessToken.split(".")[1];
@@ -55,35 +59,36 @@ export async function loginAction(formData: { email: string; password: string })
                     }
                 }
             } catch (e) {
-                console.error("Token decode error", e);
+                console.error("Token decode error:", e);
             }
         }
 
-        // Default fallback if still unresolved
+        // 3. Fallback default
         if (!role) {
             role = "CUSTOMER";
         }
 
-        // Set cookies for Next.js middleware & server actions
         const cookieStore = await cookies();
         cookieStore.set("token", accessToken, {
             path: "/",
             httpOnly: false,
             secure: process.env.NODE_ENV === "production",
-            maxAge: 60 * 60 * 24 * 7, // 7 days
+            maxAge: 60 * 60 * 24 * 7,
+            sameSite: "lax",
         });
 
-        cookieStore.set("role", role, {
+        cookieStore.set("role", role.toUpperCase(), {
             path: "/",
             httpOnly: false,
             secure: process.env.NODE_ENV === "production",
             maxAge: 60 * 60 * 24 * 7,
+            sameSite: "lax",
         });
 
         return {
             success: true,
             accessToken,
-            role,
+            role: role.toUpperCase(),
             user: data.data?.user || data.user,
         };
     } catch (error) {
@@ -99,7 +104,6 @@ export async function loginAction(formData: { email: string; password: string })
 export async function registerAction(formData: any) {
     try {
         const targetUrl = `${BACKEND_URL}/api/auth/register`;
-        console.log("Hitting Backend URL:", targetUrl);
 
         const response = await fetch(targetUrl, {
             method: "POST",
@@ -113,18 +117,29 @@ export async function registerAction(formData: any) {
             return { success: false, message: data.message || "Registration failed" };
         }
 
-        const accessToken = data.data?.accessToken || data.token;
-        const role = data.data?.user?.role || data.data?.role || formData.role || "CUSTOMER";
+        const accessToken = data.data?.accessToken || data.token || data.accessToken;
+        const role =
+            data.data?.user?.role ||
+            data.data?.role ||
+            formData.role ||
+            "CUSTOMER";
 
         if (accessToken) {
             const cookieStore = await cookies();
             cookieStore.set("token", accessToken, {
                 path: "/",
+                httpOnly: false,
+                secure: process.env.NODE_ENV === "production",
                 maxAge: 60 * 60 * 24 * 7,
+                sameSite: "lax",
             });
-            cookieStore.set("role", role, {
+
+            cookieStore.set("role", role.toUpperCase(), {
                 path: "/",
+                httpOnly: false,
+                secure: process.env.NODE_ENV === "production",
                 maxAge: 60 * 60 * 24 * 7,
+                sameSite: "lax",
             });
         }
 
@@ -132,10 +147,18 @@ export async function registerAction(formData: any) {
             success: true,
             message: data.message || "Registration successful!",
             accessToken,
-            role,
+            role: role.toUpperCase(),
         };
     } catch (error) {
         console.error("Register action error:", error);
         return { success: false, message: "Server connection failed. Is the backend running?" };
     }
+}
+
+// --- LOGOUT ACTION ---
+export async function logoutAction() {
+    const cookieStore = await cookies();
+    cookieStore.delete("token");
+    cookieStore.delete("role");
+    redirect("/login");
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Search, Star, ShieldCheck, MapPin, Award, ArrowRight, Loader2 } from "lucide-react";
+import { Search, Star, ShieldCheck, MapPin, Award, ArrowRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { getAllServicesAction } from "@/app/(dashboard-Group)/_actions/booking";
@@ -37,10 +37,9 @@ interface ServiceResponse {
 
 interface TechnicianCardItem {
     id: string;
-    serviceId: string;
     name: string;
     specialty: string;
-    category: string;
+    categories: string[];
     rating: number;
     reviews: number;
     experience: string;
@@ -63,33 +62,45 @@ export default function TechniciansPage() {
                 const res = await getAllServicesAction();
                 const services: ServiceResponse[] = res.data || [];
 
-                const mapped: TechnicianCardItem[] = services.map((service, index) => {
+                // ১ জন টেকনিশিয়ানকে একবারই রাখার জন্য গ্রুপিং
+                const techMap = new Map<string, TechnicianCardItem>();
+                const categorySet = new Set<string>();
+
+                services.forEach((service, index) => {
                     const tech = service.technician;
                     const user = tech?.user;
+                    const techId = tech?.id || service.technicianId || service.id;
                     const catName = service.category?.name || "General Service";
 
-                    return {
-                        id: tech?.id || service.technicianId || service.id,
-                        serviceId: service.id,
-                        name: user?.name || `Technician #${index + 1}`,
-                        specialty: service.title || "Home Repair Specialist",
-                        category: catName,
-                        rating: 4.9,
-                        reviews: 40 + index * 12,
-                        experience: tech?.experience ? `${tech.experience} Years` : "5+ Years",
-                        location: user?.address || "Dhaka, Bangladesh",
-                        image:
-                            user?.profilePhoto && user.profilePhoto.startsWith("http")
-                                ? user.profilePhoto
-                                : "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80",
-                        verified: true,
-                    };
+                    if (catName) categorySet.add(catName);
+
+                    if (techMap.has(techId)) {
+                        const existing = techMap.get(techId)!;
+                        if (!existing.categories.includes(catName)) {
+                            existing.categories.push(catName);
+                        }
+                    } else {
+                        techMap.set(techId, {
+                            id: techId,
+                            name: user?.name || `Technician #${index + 1}`,
+                            specialty: service.title || "Home Repair Specialist",
+                            categories: [catName],
+                            rating: 4.9,
+                            reviews: 40 + index * 5,
+                            experience: tech?.experience ? `${tech.experience} Years` : "5+ Years",
+                            location: user?.address || "Dhaka, Bangladesh",
+                            image:
+                                user?.profilePhoto && user.profilePhoto.startsWith("http")
+                                    ? user.profilePhoto
+                                    : "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80",
+                            verified: true,
+                        });
+                    }
                 });
 
-                setTechnicians(mapped);
-
-                const dynamicCategories = ["All", ...Array.from(new Set(mapped.map((t) => t.category)))];
-                setCategories(dynamicCategories);
+                const uniqueTechList = Array.from(techMap.values());
+                setTechnicians(uniqueTechList);
+                setCategories(["All", ...Array.from(categorySet)]);
             } catch (error) {
                 console.error("Failed to load technicians:", error);
             } finally {
@@ -105,7 +116,10 @@ export default function TechniciansPage() {
             tech.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             tech.specialty.toLowerCase().includes(searchTerm.toLowerCase()) ||
             tech.location.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesCategory = selectedCategory === "All" || tech.category === selectedCategory;
+
+        const matchesCategory =
+            selectedCategory === "All" || tech.categories.includes(selectedCategory);
+
         return matchesSearch && matchesCategory;
     });
 
@@ -142,9 +156,9 @@ export default function TechniciansPage() {
                     </div>
 
                     <div className="flex flex-wrap justify-center gap-2 pt-6">
-                        {categories.map((cat) => (
+                        {categories.map((cat, catIdx) => (
                             <button
-                                key={cat}
+                                key={`category-filter-${cat}-${catIdx}`}
                                 onClick={() => setSelectedCategory(cat)}
                                 className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${selectedCategory === cat
                                     ? "bg-gradient-to-r from-emerald-500 to-cyan-600 text-white shadow-lg shadow-emerald-500/25 scale-105"
@@ -158,16 +172,35 @@ export default function TechniciansPage() {
                 </div>
 
                 {loading ? (
-                    <div className="flex flex-col items-center justify-center py-20 space-y-3">
-                        <Loader2 className="h-8 w-8 animate-spin text-emerald-400" />
-                        <p className="text-sm text-zinc-400">Loading active professionals...</p>
+                    /* স্কেলিটন লোডার গ্রিড */
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        {[1, 2, 3, 4, 5, 6].map((n) => (
+                            <div
+                                key={`skeleton-${n}`}
+                                className="rounded-3xl border border-white/5 bg-zinc-900/30 p-8 space-y-6 animate-pulse"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className="h-16 w-16 rounded-2xl bg-zinc-800" />
+                                    <div className="space-y-2 flex-1">
+                                        <div className="h-5 w-3/4 bg-zinc-800 rounded-lg" />
+                                        <div className="h-3 w-1/2 bg-zinc-800/60 rounded-lg" />
+                                    </div>
+                                </div>
+                                <div className="space-y-2.5">
+                                    <div className="h-10 w-full bg-zinc-800/40 rounded-xl" />
+                                    <div className="h-10 w-full bg-zinc-800/40 rounded-xl" />
+                                    <div className="h-10 w-full bg-zinc-800/40 rounded-xl" />
+                                </div>
+                                <div className="h-12 w-full bg-zinc-800 rounded-xl mt-4" />
+                            </div>
+                        ))}
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                         {filteredTechnicians.length > 0 ? (
                             filteredTechnicians.map((tech) => (
                                 <div
-                                    key={tech.id}
+                                    key={`technician-profile-${tech.id}`}
                                     className="group relative rounded-3xl border border-white/10 bg-zinc-900/40 p-8 backdrop-blur-xl transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(0,0,0,0.6)] hover:border-emerald-500/40 flex flex-col justify-between"
                                 >
                                     <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-3xl pointer-events-none" />
@@ -178,6 +211,10 @@ export default function TechniciansPage() {
                                                 <img
                                                     src={tech.image}
                                                     alt={tech.name}
+                                                    onError={(e) => {
+                                                        (e.target as HTMLImageElement).src =
+                                                            "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80";
+                                                    }}
                                                     className="h-16 w-16 rounded-2xl object-cover border-2 border-white/10 group-hover:border-emerald-500/50 transition-colors"
                                                 />
                                                 {tech.verified && (
