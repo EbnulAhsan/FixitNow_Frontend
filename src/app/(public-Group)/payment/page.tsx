@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
@@ -10,7 +11,10 @@ import {
     useElements,
 } from "@stripe/react-stripe-js";
 import { CreditCard, ArrowLeft, ShieldCheck, Loader2, CheckCircle2, Lock } from "lucide-react";
-import { createPaymentIntentAction } from "@/app/(dashboard-Group)/_actions/payment";
+import {
+    createPaymentIntentAction,
+    confirmBookingPaymentAction,
+} from "@/app/(dashboard-Group)/_actions/payment";
 
 const stripePromise = loadStripe(
     process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ||
@@ -21,7 +25,7 @@ function StripeCheckoutForm({
     bookingId,
     clientSecret,
     amount,
-    serviceName
+    serviceName,
 }: {
     bookingId: string;
     clientSecret: string;
@@ -53,6 +57,7 @@ function StripeCheckoutForm({
         }
 
         try {
+            // 1. Confirm card payment with Stripe
             const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
                 payment_method: {
                     card: cardElement,
@@ -61,16 +66,23 @@ function StripeCheckoutForm({
 
             if (error) {
                 setErrorMessage(error.message || "Payment failed. Please try again.");
+                setIsProcessing(false);
             } else if (paymentIntent && paymentIntent.status === "succeeded") {
+                // 2. Notify backend to update booking status to PAID / IN_PROGRESS
+                try {
+                    await confirmBookingPaymentAction(bookingId, paymentIntent.id);
+                } catch (confirmErr) {
+                    console.error("Failed to notify backend of payment confirmation:", confirmErr);
+                }
+
                 setIsSuccess(true);
                 setTimeout(() => {
-                    router.push("/customer-dashboard");
-                }, 2500);
+                    router.push("/customer-dashboard?payment=success");
+                }, 2000);
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error("Payment confirmation error:", err);
-            setErrorMessage("Unexpected error during transaction.");
-        } finally {
+            setErrorMessage(err?.message || "Unexpected error during transaction.");
             setIsProcessing(false);
         }
     };
@@ -81,7 +93,7 @@ function StripeCheckoutForm({
                 <CheckCircle2 className="h-14 w-14 text-emerald-400 mx-auto animate-bounce" />
                 <h2 className="text-xl font-bold text-white">Payment Successful!</h2>
                 <p className="text-sm text-zinc-400">
-                    Your booking is now confirmed. Redirecting to your dashboard...
+                    Your booking is confirmed. Redirecting to your dashboard...
                 </p>
             </div>
         );
@@ -139,11 +151,11 @@ function StripeCheckoutForm({
             <button
                 type="submit"
                 disabled={!stripe || isProcessing}
-                className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 text-white font-medium rounded-xl flex items-center justify-center gap-2 text-sm shadow-lg shadow-blue-500/20 transition-all"
+                className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 text-white font-medium rounded-xl flex items-center justify-center gap-2 text-sm shadow-lg shadow-blue-500/20 transition-all cursor-pointer disabled:cursor-not-allowed"
             >
                 {isProcessing ? (
                     <>
-                        <Loader2 className="h-4 w-4 animate-spin" /> Verifying Transaction...
+                        <Loader2 className="h-4 w-4 animate-spin" /> Processing Transaction...
                     </>
                 ) : (
                     <>
@@ -191,11 +203,30 @@ function PaymentContent() {
                 const res = await createPaymentIntentAction(bookingId);
                 if (res?.success && res?.clientSecret) {
                     setClientSecret(res.clientSecret);
-                    if (res?.amount) setAmount(res.amount);
+
+                    // If backend returns amount/service info in payload
+                    const receivedAmount =
+                        res.data?.amount ||
+                        res.data?.totalAmount ||
+                        res.data?.booking?.totalAmount ||
+                        res.data?.booking?.service?.price;
+
+                    if (receivedAmount) {
+                        setAmount(receivedAmount > 10000 ? Math.round(receivedAmount / 100) : receivedAmount);
+                    }
+
+                    const receivedServiceName =
+                        res.data?.serviceName ||
+                        res.data?.booking?.service?.title ||
+                        res.data?.booking?.service?.name;
+
+                    if (receivedServiceName) {
+                        setServiceName(receivedServiceName);
+                    }
                 } else {
                     setIntentError(res?.message || "Failed to initialize Stripe PaymentIntent.");
                 }
-            } catch (err) {
+            } catch (err: any) {
                 console.error("Payment setup error:", err);
                 setIntentError("Could not reach backend payment server.");
             } finally {
@@ -210,8 +241,8 @@ function PaymentContent() {
         <div className="min-h-screen bg-black text-white flex items-center justify-center p-4">
             <div className="max-w-md w-full rounded-3xl border border-white/10 bg-zinc-900/60 backdrop-blur-xl p-8 space-y-6">
                 <button
-                    onClick={() => router.back()}
-                    className="flex items-center text-xs text-zinc-400 hover:text-white transition-colors"
+                    onClick={() => router.push("/customer-dashboard")}
+                    className="flex items-center text-xs text-zinc-400 hover:text-white transition-colors cursor-pointer"
                 >
                     <ArrowLeft className="h-4 w-4 mr-1" /> Back to dashboard
                 </button>
@@ -228,11 +259,11 @@ function PaymentContent() {
                         <span className="text-xs">Preparing secure payment channel...</span>
                     </div>
                 ) : intentError ? (
-                    <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-center space-y-2">
+                    <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-center space-y-3">
                         <p className="text-xs text-rose-400 break-all">{intentError}</p>
                         <button
                             onClick={() => window.location.reload()}
-                            className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-xs text-zinc-300 hover:bg-white/10 transition"
+                            className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-xs text-zinc-300 hover:bg-white/10 transition cursor-pointer"
                         >
                             Retry
                         </button>
@@ -262,4 +293,4 @@ export default function PaymentPage() {
             <PaymentContent />
         </Suspense>
     );
-}   
+}

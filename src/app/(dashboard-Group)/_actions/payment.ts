@@ -1,17 +1,24 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use server";
 
 import { cookies } from "next/headers";
 
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+
+// 1. Payment Intent create kora (Stripe clientSecret ante)
 export async function createPaymentIntentAction(bookingId: string) {
     try {
         const cookieStore = await cookies();
         const token = cookieStore.get("token")?.value;
 
         if (!token) {
-            return { success: false, message: "Unauthorized. Please login to proceed with payment." };
+            return {
+                success: false,
+                message: "Unauthorized. Please login to proceed with payment.",
+            };
         }
 
-        const response = await fetch("http://localhost:5000/api/payments/create-payment-intent", {
+        const response = await fetch(`${BACKEND_URL}/api/payments/create-payment-intent`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -31,7 +38,6 @@ export async function createPaymentIntentAction(bookingId: string) {
             };
         }
 
-        
         const clientSecret =
             resData.clientSecret ||
             resData.client_secret ||
@@ -50,8 +56,57 @@ export async function createPaymentIntentAction(bookingId: string) {
             clientSecret,
             data: resData.data || resData,
         };
-    } catch (error) {
+    } catch (error: any) {
         console.error("Payment intent action error:", error);
-        return { success: false, message: "Server connection failed" };
+        return {
+            success: false,
+            message: error?.message || "Server connection failed",
+        };
+    }
+}
+
+// 2. Stripe payment confirm hole backend-e status update kora
+export async function confirmBookingPaymentAction(bookingId: string, paymentIntentId: string) {
+    try {
+        const cookieStore = await cookies();
+        const token = cookieStore.get("token")?.value;
+
+        if (!token) {
+            return {
+                success: false,
+                message: "Unauthorized request",
+            };
+        }
+
+        const response = await fetch(`${BACKEND_URL}/api/payments/confirm`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ bookingId, paymentIntentId }),
+            cache: "no-store",
+        });
+
+        const resData = await response.json();
+        console.log("Backend Confirm Payment Response:", resData);
+
+        if (!response.ok) {
+            return {
+                success: false,
+                message: resData.message || "Failed to confirm payment status",
+            };
+        }
+
+        return {
+            success: true,
+            data: resData,
+        };
+    } catch (error: any) {
+        console.error("Confirm payment action error:", error);
+        return {
+            success: false,
+            message: error?.message || "Server connection failed",
+        };
     }
 }

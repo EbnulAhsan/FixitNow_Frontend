@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
     Calendar,
     Clock,
@@ -9,7 +10,9 @@ import {
     AlertCircle,
     ArrowUpRight,
     Loader2,
-    RefreshCw
+    RefreshCw,
+    DollarSign,
+    CheckCircle2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -23,6 +26,8 @@ interface Booking {
     notes?: string;
     status: "REQUESTED" | "ACCEPTED" | "DECLINED" | "PAID" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
     totalAmount?: number;
+    amount?: number;
+    price?: number;
     service?: {
         id?: string;
         title?: string;
@@ -40,11 +45,14 @@ interface Booking {
 }
 
 export default function CustomerDashboard() {
+    const searchParams = useSearchParams();
+    const paymentSuccess = searchParams.get("payment") === "success";
+
     const [bookings, setBookings] = useState<Booking[]>([]);
     const [loading, setLoading] = useState(true);
     const [cancellingId, setCancellingId] = useState<string | null>(null);
 
-    const fetchBookings = async () => {
+    const fetchBookings = useCallback(async () => {
         setLoading(true);
         try {
             const res = await getCustomerBookingsAction();
@@ -59,11 +67,11 @@ export default function CustomerDashboard() {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
     useEffect(() => {
         fetchBookings();
-    }, []);
+    }, [fetchBookings]);
 
     const handleCancelBooking = async (bookingId: string) => {
         if (!confirm("Are you sure you want to cancel this booking?")) return;
@@ -101,7 +109,7 @@ export default function CustomerDashboard() {
         return (
             booking.service?.technician?.user?.name ||
             booking.technicianName ||
-            "Rahim Technician"
+            "Assigned Technician"
         );
     };
 
@@ -120,12 +128,16 @@ export default function CustomerDashboard() {
         );
     };
 
+    const getBookingAmount = (booking: Booking) => {
+        return booking.totalAmount || booking.amount || booking.price || booking.service?.price || 0;
+    };
+
     const renderStatusBadge = (status: Booking["status"]) => {
         switch (status) {
             case "REQUESTED":
                 return <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/30">REQUESTED</span>;
             case "ACCEPTED":
-                return <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-500/15 text-blue-400 border border-blue-500/30">ACCEPTED</span>;
+                return <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-500/15 text-blue-400 border border-blue-500/30 animate-pulse">ACCEPTED (PAYMENT PENDING)</span>;
             case "PAID":
                 return <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-500/15 text-purple-400 border border-purple-500/30">PAID</span>;
             case "IN_PROGRESS":
@@ -147,6 +159,13 @@ export default function CustomerDashboard() {
 
     return (
         <div className="space-y-8">
+            {paymentSuccess && (
+                <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center gap-3">
+                    <CheckCircle2 className="h-5 w-5 shrink-0" />
+                    <p className="text-sm font-medium">Payment completed successfully! The technician has been notified to start work.</p>
+                </div>
+            )}
+
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h2 className="text-3xl font-bold tracking-tight text-white">Welcome Back! 👋</h2>
@@ -219,6 +238,7 @@ export default function CustomerDashboard() {
                                     <th className="px-6 py-4 rounded-l-xl">Service</th>
                                     <th className="px-6 py-4">Technician</th>
                                     <th className="px-6 py-4">Schedule</th>
+                                    <th className="px-6 py-4">Amount</th>
                                     <th className="px-6 py-4">Status</th>
                                     <th className="px-6 py-4 text-right rounded-r-xl">Action</th>
                                 </tr>
@@ -231,6 +251,7 @@ export default function CustomerDashboard() {
 
                                     const techName = getTechName(booking);
                                     const rawDate = booking.bookingDate || booking.date;
+                                    const amount = getBookingAmount(booking);
 
                                     return (
                                         <tr key={booking.id} className="hover:bg-white/[0.02] transition-colors">
@@ -252,13 +273,16 @@ export default function CustomerDashboard() {
                                                     </div>
                                                 )}
                                             </td>
+                                            <td className="px-6 py-4 text-zinc-200 font-medium">
+                                                {amount ? `$${amount}` : "Standard Rate"}
+                                            </td>
                                             <td className="px-6 py-4">
                                                 {renderStatusBadge(booking.status)}
                                             </td>
                                             <td className="px-6 py-4 text-right space-x-2 whitespace-nowrap">
                                                 {needsPayment && (
                                                     <Link href={`/payment?bookingId=${booking.id}`}>
-                                                        <Button size="sm" className="h-8 bg-blue-600 hover:bg-blue-700 text-white text-xs gap-1.5 shadow-md">
+                                                        <Button size="sm" className="h-8 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white text-xs gap-1.5 shadow-md shadow-blue-500/20 font-medium animate-pulse">
                                                             <CreditCard className="h-3.5 w-3.5" /> Pay Now
                                                         </Button>
                                                     </Link>
