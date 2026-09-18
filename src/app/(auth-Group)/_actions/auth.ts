@@ -1,16 +1,17 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use server";
 
+import { cookies } from "next/headers";
 
-// login 
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+
+// --- LOGIN ACTION ---
 export async function loginAction(formData: { email: string; password: string }) {
     try {
+        const targetUrl = `${BACKEND_URL}/api/auth/login`;
+        console.log("Hitting Backend URL:", targetUrl);
 
-        const BACKEND_URL = "http://localhost:5000/api/auth/login";
-
-        console.log("Hitting Backend URL:", BACKEND_URL);
-
-        const response = await fetch(BACKEND_URL, {
+        const response = await fetch(targetUrl, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -27,37 +28,66 @@ export async function loginAction(formData: { email: string; password: string })
             };
         }
 
-        const accessToken = data.data?.accessToken || data.token;
+        const accessToken = data.data?.accessToken || data.token || data.accessToken;
 
         if (!accessToken) {
             return { success: false, message: "Token not received from server" };
         }
 
+        // 1. First priority: Check role directly from backend response
+        let role = data.data?.user?.role || data.data?.role || data.user?.role;
 
-        let role = "CUSTOMER";
-        try {
-            const base64Url = accessToken.split(".")[1];
-            const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-            const jsonPayload = decodeURIComponent(
-                atob(base64)
-                    .split("")
-                    .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
-                    .join("")
-            );
-            const decodedToken = JSON.parse(jsonPayload);
-            if (decodedToken.role) {
-                role = decodedToken.role;
+        // 2. Fallback: Decode JWT payload if not directly in response body
+        if (!role) {
+            try {
+                const base64Url = accessToken.split(".")[1];
+                if (base64Url) {
+                    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+                    const jsonPayload = decodeURIComponent(
+                        atob(base64)
+                            .split("")
+                            .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+                            .join("")
+                    );
+                    const decodedToken = JSON.parse(jsonPayload);
+                    if (decodedToken.role) {
+                        role = decodedToken.role;
+                    }
+                }
+            } catch (e) {
+                console.error("Token decode error", e);
             }
-        } catch (e) {
-            console.error("Token decode error", e);
         }
+
+        // Default fallback if still unresolved
+        if (!role) {
+            role = "CUSTOMER";
+        }
+
+        // Set cookies for Next.js middleware & server actions
+        const cookieStore = await cookies();
+        cookieStore.set("token", accessToken, {
+            path: "/",
+            httpOnly: false,
+            secure: process.env.NODE_ENV === "production",
+            maxAge: 60 * 60 * 24 * 7, // 7 days
+        });
+
+        cookieStore.set("role", role, {
+            path: "/",
+            httpOnly: false,
+            secure: process.env.NODE_ENV === "production",
+            maxAge: 60 * 60 * 24 * 7,
+        });
 
         return {
             success: true,
             accessToken,
             role,
+            user: data.data?.user || data.user,
         };
     } catch (error) {
+        console.error("Login action error:", error);
         return {
             success: false,
             message: "Server connection failed. Is the backend running?",
@@ -65,18 +95,13 @@ export async function loginAction(formData: { email: string; password: string })
     }
 }
 
-
-// registration
-
-// --- REGISTER ACTION (নতুন) ---
+// --- REGISTER ACTION ---
 export async function registerAction(formData: any) {
     try {
-        // আপনার ব্যাকএন্ডের রেজিস্ট্রেশন এন্ডপয়েন্ট (পোর্ট 5000 ধরে নিচ্ছি)
-        const BACKEND_URL = "http://localhost:5000/api/auth/register";
+        const targetUrl = `${BACKEND_URL}/api/auth/register`;
+        console.log("Hitting Backend URL:", targetUrl);
 
-        console.log("Hitting Backend URL:", BACKEND_URL);
-
-        const response = await fetch(BACKEND_URL, {
+        const response = await fetch(targetUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(formData),
@@ -88,15 +113,29 @@ export async function registerAction(formData: any) {
             return { success: false, message: data.message || "Registration failed" };
         }
 
-        // সাধারণত রেজিস্ট্রেশনের পরও ব্যাকএন্ড টোকেন রিটার্ন করে, যদি করে সেটা ধরব
         const accessToken = data.data?.accessToken || data.token;
+        const role = data.data?.user?.role || data.data?.role || formData.role || "CUSTOMER";
+
+        if (accessToken) {
+            const cookieStore = await cookies();
+            cookieStore.set("token", accessToken, {
+                path: "/",
+                maxAge: 60 * 60 * 24 * 7,
+            });
+            cookieStore.set("role", role, {
+                path: "/",
+                maxAge: 60 * 60 * 24 * 7,
+            });
+        }
 
         return {
             success: true,
             message: data.message || "Registration successful!",
-            accessToken: accessToken
+            accessToken,
+            role,
         };
     } catch (error) {
+        console.error("Register action error:", error);
         return { success: false, message: "Server connection failed. Is the backend running?" };
     }
 }

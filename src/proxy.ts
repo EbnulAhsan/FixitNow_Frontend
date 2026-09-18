@@ -1,12 +1,19 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-export function proxy(request: NextRequest) {
+export function middleware(request: NextRequest) {
     const token = request.cookies.get("token")?.value;
-    const role = request.cookies.get("role")?.value;
+    const role = request.cookies.get("role")?.value?.toUpperCase();
     const { pathname } = request.nextUrl;
 
-    // ড্যাশবোর্ড রাউট প্রটেকশন
+    // 1. Unauthenticated users cannot access any dashboard
+    if (!token) {
+        const loginUrl = new URL("/login", request.url);
+        loginUrl.searchParams.set("redirect", pathname);
+        return NextResponse.redirect(loginUrl);
+    }
+
+    // 2. Strict Role-based Protection
     if (pathname.startsWith("/admin-dashboard") && role !== "ADMIN") {
         return NextResponse.redirect(new URL("/login", request.url));
     }
@@ -22,6 +29,13 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
 }
 
+// Next.js convention-e proxy function name chaile export alias:
+export { middleware as proxy };
+
 export const config = {
-    matcher: ["/admin-dashboard/:path*", "/technician-dashboard/:path*", "/customer-dashboard/:path*"],
+    matcher: [
+        "/admin-dashboard/:path*",
+        "/technician-dashboard/:path*",
+        "/customer-dashboard/:path*",
+    ],
 };

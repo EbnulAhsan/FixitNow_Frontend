@@ -2,14 +2,17 @@
 "use server";
 
 import { cookies } from "next/headers";
+import { revalidatePath } from "next/cache";
+
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
 const isUUID = (id?: string) =>
     Boolean(id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
 
-// Public/Server Action: Fetch all services (Avoids client-side CORS error)
+// Public/Server Action: Fetch all services
 export async function getAllServicesAction() {
     try {
-        const response = await fetch("http://localhost:5000/api/services", {
+        const response = await fetch(`${BACKEND_URL}/api/services`, {
             method: "GET",
             cache: "no-store",
         });
@@ -23,6 +26,29 @@ export async function getAllServicesAction() {
     }
 }
 
+// Fetch single technician profile data
+export async function getTechnicianByIdAction(technicianId: string) {
+    try {
+        let res = await fetch(`${BACKEND_URL}/api/technicians/${technicianId}`, {
+            method: "GET",
+            cache: "no-store",
+        });
+
+        if (!res.ok) {
+            res = await fetch(`${BACKEND_URL}/api/users/${technicianId}`, {
+                method: "GET",
+                cache: "no-store",
+            });
+        }
+
+        const data = await res.json();
+        return { success: res.ok, data: data?.data || data };
+    } catch (error) {
+        console.error("Fetch technician profile error:", error);
+        return { success: false, data: null };
+    }
+}
+
 // Customer dashboard-er booking list get kora
 export async function getCustomerBookingsAction() {
     try {
@@ -33,7 +59,7 @@ export async function getCustomerBookingsAction() {
             return { success: false, message: "No token found", data: [] };
         }
 
-        let response = await fetch("http://localhost:5000/api/bookings/my-bookings", {
+        let response = await fetch(`${BACKEND_URL}/api/bookings/my-bookings`, {
             method: "GET",
             headers: {
                 "Content-Type": "application/json",
@@ -43,7 +69,7 @@ export async function getCustomerBookingsAction() {
         });
 
         if (!response.ok) {
-            response = await fetch("http://localhost:5000/api/bookings", {
+            response = await fetch(`${BACKEND_URL}/api/bookings`, {
                 method: "GET",
                 headers: {
                     "Content-Type": "application/json",
@@ -74,13 +100,15 @@ export async function getCustomerBookingsAction() {
     }
 }
 
-// Booking create korar action
+// Booking create korar action (Supports both technician profile and service booking flows)
 export async function createBookingAction(payload: {
-    serviceId: string;
+    serviceId?: string;
     technicianId?: string;
     technicianName?: string;
-    date: string;
+    bookingDate?: string;
+    date?: string;
     timeSlot?: string;
+    address?: string;
     notes?: string;
 }) {
     try {
@@ -88,17 +116,41 @@ export async function createBookingAction(payload: {
         const token = cookieStore.get("token")?.value;
 
         if (!token) {
-            return { success: false, message: "Please login to book a service." };
+            return { success: false, message: "Please log in to book a service." };
         }
 
-        const formattedBookingDate = new Date(`${payload.date}T10:00:00.000Z`).toISOString();
+        const rawDate = payload.bookingDate || payload.date;
+        let formattedBookingDate: string;
 
-        const backendPayload = {
-            serviceId: payload.serviceId,
+        if (rawDate && rawDate.includes("T")) {
+            formattedBookingDate = rawDate;
+        } else if (rawDate) {
+            formattedBookingDate = new Date(`${rawDate}T10:00:00.000Z`).toISOString();
+        } else {
+            formattedBookingDate = new Date().toISOString();
+        }
+
+        const backendPayload: Record<string, any> = {
             bookingDate: formattedBookingDate,
         };
 
-        const response = await fetch("http://localhost:5000/api/bookings", {
+        if (payload.serviceId && isUUID(payload.serviceId)) {
+            backendPayload.serviceId = payload.serviceId;
+        }
+        if (payload.technicianId && isUUID(payload.technicianId)) {
+            backendPayload.technicianId = payload.technicianId;
+        }
+        if (payload.timeSlot) {
+            backendPayload.timeSlot = payload.timeSlot;
+        }
+        if (payload.address) {
+            backendPayload.address = payload.address;
+        }
+        if (payload.notes) {
+            backendPayload.notes = payload.notes;
+        }
+
+        const response = await fetch(`${BACKEND_URL}/api/bookings`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -112,7 +164,10 @@ export async function createBookingAction(payload: {
             return { success: false, message: data.message || "Failed to create booking" };
         }
 
-        return { success: true, data: data.data || data };
+        revalidatePath("/customer-dashboard");
+        revalidatePath("/customer-dashboard/bookings");
+
+        return { success: true, message: "Booking placed successfully!", data: data.data || data };
     } catch (error) {
         console.error("Create booking error:", error);
         return { success: false, message: "Server connection failed" };
@@ -129,7 +184,7 @@ export async function cancelBookingAction(bookingId: string) {
             return { success: false, message: "Unauthorized" };
         }
 
-        let response = await fetch(`http://localhost:5000/api/bookings/${bookingId}/cancel`, {
+        let response = await fetch(`${BACKEND_URL}/api/bookings/${bookingId}/cancel`, {
             method: "PATCH",
             headers: {
                 "Content-Type": "application/json",
@@ -138,7 +193,7 @@ export async function cancelBookingAction(bookingId: string) {
         });
 
         if (!response.ok) {
-            response = await fetch(`http://localhost:5000/api/bookings/${bookingId}`, {
+            response = await fetch(`${BACKEND_URL}/api/bookings/${bookingId}`, {
                 method: "PATCH",
                 headers: {
                     "Content-Type": "application/json",
@@ -153,10 +208,10 @@ export async function cancelBookingAction(bookingId: string) {
             return { success: false, message: data.message || "Failed to cancel booking" };
         }
 
+        revalidatePath("/customer-dashboard");
         return { success: true, data };
     } catch (error) {
         console.error("Cancel action error:", error);
         return { success: false, message: "Server connection failed" };
     }
 }
-

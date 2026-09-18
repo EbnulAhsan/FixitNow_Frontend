@@ -110,3 +110,51 @@ export async function confirmBookingPaymentAction(bookingId: string, paymentInte
         };
     }
 }
+
+
+// 3. customer dashboard payment history added 
+
+export async function getCustomerPaymentsAction() {
+    try {
+        const cookieStore = await cookies();
+        const token = cookieStore.get("token")?.value;
+
+        if (!token) {
+            return {
+                success: false,
+                message: "Unauthorized request",
+                data: [],
+            };
+        }
+
+        const response = await fetch(`${BACKEND_URL}/api/payments/my-payments`, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+            cache: "no-store",
+        });
+
+        const resData = await response.json();
+
+        if (!response.ok) {
+            return {
+                success: false,
+                message: resData.message || "Failed to fetch payment history",
+                data: [],
+            };
+        }
+
+        return {
+            success: true,
+            data: resData.data || [],
+        };
+    } catch (error: any) {
+        return {
+            success: false,
+            message: error?.message || "Server connection error",
+            data: [],
+        };
+    }
+}

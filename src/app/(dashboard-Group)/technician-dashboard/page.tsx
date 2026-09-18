@@ -6,7 +6,7 @@ import {
     getTechnicianBookingsAction,
     updateBookingStatusAction,
 } from "@/app/(dashboard-Group)/_actions/technician";
-import { CheckCircle, XCircle, Clock, Calendar, AlertCircle, Loader2 } from "lucide-react";
+import { CheckCircle, XCircle, Clock, Calendar, AlertCircle, Loader2, PlayCircle } from "lucide-react";
 
 export default function TechnicianDashboard() {
     const [bookings, setBookings] = useState<any[]>([]);
@@ -49,7 +49,10 @@ export default function TechnicianDashboard() {
         }
     };
 
-    const activeTasks = bookings.filter((b) => b.status === "PENDING" || b.status === "CONFIRMED");
+    // Active tasks include accepted, paid, and in-progress jobs
+    const activeTasks = bookings.filter((b) =>
+        ["PENDING", "CONFIRMED", "ACCEPTED", "PAID", "IN_PROGRESS"].includes(b.status)
+    );
     const completedTasks = bookings.filter((b) => b.status === "COMPLETED");
 
     return (
@@ -112,11 +115,15 @@ export default function TechnicianDashboard() {
                                         <span
                                             className={`text-[11px] px-2.5 py-0.5 rounded-full border font-medium ${booking.status === "COMPLETED"
                                                 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                                                : booking.status === "CONFIRMED" || booking.status === "ACCEPTED"
-                                                    ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/20"
-                                                    : booking.status === "CANCELLED"
-                                                        ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
-                                                        : "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                                                : booking.status === "PAID"
+                                                    ? "bg-purple-500/10 text-purple-400 border-purple-500/20"
+                                                    : booking.status === "IN_PROGRESS"
+                                                        ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                                                        : booking.status === "CONFIRMED" || booking.status === "ACCEPTED"
+                                                            ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/20"
+                                                            : booking.status === "CANCELLED"
+                                                                ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                                                                : "bg-amber-500/10 text-amber-400 border-amber-500/20"
                                                 }`}
                                         >
                                             {booking.status}
@@ -140,14 +147,20 @@ export default function TechnicianDashboard() {
                                 </div>
 
                                 <div className="flex items-center gap-2">
-                                    {booking.status === "PENDING" && (
+                                    {/* For New Requests */}
+                                    {(booking.status === "PENDING" || booking.status === "REQUESTED") && (
                                         <>
                                             <button
                                                 disabled={loadingId === booking.id}
-                                                onClick={() => handleStatusUpdate(booking.id, "CONFIRMED")}
+                                                onClick={() => handleStatusUpdate(booking.id, "ACCEPTED")}
                                                 className="flex items-center gap-1 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition disabled:opacity-50"
                                             >
-                                                <CheckCircle className="w-3.5 h-3.5" /> Accept
+                                                {loadingId === booking.id ? (
+                                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                ) : (
+                                                    <CheckCircle className="w-3.5 h-3.5" />
+                                                )}
+                                                Accept
                                             </button>
                                             <button
                                                 disabled={loadingId === booking.id}
@@ -159,12 +172,41 @@ export default function TechnicianDashboard() {
                                         </>
                                     )}
 
-                                    {(booking.status === "CONFIRMED" || booking.status === "ACCEPTED") && (
+                                    {/* Awaiting Customer Payment */}
+                                    {(booking.status === "ACCEPTED" || booking.status === "CONFIRMED") && (
+                                        <span className="text-xs text-amber-400/90 font-medium px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                                            Awaiting Payment
+                                        </span>
+                                    )}
+
+                                    {/* After Customer Paid -> Start Service */}
+                                    {booking.status === "PAID" && (
+                                        <button
+                                            disabled={loadingId === booking.id}
+                                            onClick={() => handleStatusUpdate(booking.id, "IN_PROGRESS")}
+                                            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium transition disabled:opacity-50 shadow-lg shadow-purple-600/20"
+                                        >
+                                            {loadingId === booking.id ? (
+                                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                            ) : (
+                                                <PlayCircle className="w-3.5 h-3.5" />
+                                            )}
+                                            Start Service
+                                        </button>
+                                    )}
+
+                                    {/* While In Progress -> Mark Complete */}
+                                    {booking.status === "IN_PROGRESS" && (
                                         <button
                                             disabled={loadingId === booking.id}
                                             onClick={() => handleStatusUpdate(booking.id, "COMPLETED")}
-                                            className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition disabled:opacity-50"
+                                            className="flex items-center gap-1 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition disabled:opacity-50"
                                         >
+                                            {loadingId === booking.id ? (
+                                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                            ) : (
+                                                <CheckCircle className="w-3.5 h-3.5" />
+                                            )}
                                             Mark as Completed
                                         </button>
                                     )}

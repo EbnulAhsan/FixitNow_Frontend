@@ -4,57 +4,38 @@
 import { useEffect, useState, useMemo } from "react";
 import {
     Users,
-    Wrench,
-    CalendarCheck,
-    DollarSign,
+    Search,
     ShieldAlert,
     ShieldCheck,
-    Search,
     Loader2,
     RefreshCw,
     AlertCircle
 } from "lucide-react";
-import {
-    getAllUsersAction,
-    toggleUserStatusAction,
-    getAdminStatsAction
-} from "../_actions/admin";
+import { getAllUsersAction, toggleUserStatusAction } from "../../_actions/admin";
 
-export default function AdminDashboard() {
+export default function ManageUsersPage() {
     const [users, setUsers] = useState<any[]>([]);
-    const [stats, setStats] = useState<any>({
-        totalUsers: 0,
-        activeTechnicians: 0,
-        totalBookings: 0,
-        platformRevenue: 0,
-    });
     const [loading, setLoading] = useState(true);
     const [updatingId, setUpdatingId] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
+    const [roleFilter, setRoleFilter] = useState("ALL");
 
-    const loadData = async () => {
+    const loadUsers = async () => {
         setLoading(true);
         try {
-            const [usersRes, statsRes] = await Promise.all([
-                getAllUsersAction(),
-                getAdminStatsAction(),
-            ]);
-
-            if (usersRes.success && Array.isArray(usersRes.data)) {
-                setUsers(usersRes.data);
-            }
-            if (statsRes.success && statsRes.data) {
-                setStats(statsRes.data);
+            const res = await getAllUsersAction();
+            if (res.success && Array.isArray(res.data)) {
+                setUsers(res.data);
             }
         } catch (err) {
-            console.error("Admin dashboard load failed:", err);
+            console.error("Failed to load users:", err);
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        loadData();
+        loadUsers();
     }, []);
 
     const handleToggleStatus = async (userId: string, currentStatus: string) => {
@@ -65,9 +46,7 @@ export default function AdminDashboard() {
                 prev.map((u) => {
                     if (u.id === userId) {
                         const nextStatus =
-                            u.status === "BLOCKED" || u.status === "BANNED"
-                                ? "ACTIVE"
-                                : "BLOCKED";
+                            u.status === "BLOCKED" || u.status === "BANNED" ? "ACTIVE" : "BLOCKED";
                         return { ...u, status: nextStatus };
                     }
                     return u;
@@ -83,25 +62,28 @@ export default function AdminDashboard() {
         return users.filter((u) => {
             const name = (u.name || "").toLowerCase();
             const email = (u.email || "").toLowerCase();
-            const role = (u.role || "").toLowerCase();
-            const query = searchQuery.toLowerCase();
-            return name.includes(query) || email.includes(query) || role.includes(query);
-        });
-    }, [users, searchQuery]);
+            const role = (u.role || "").toUpperCase();
+            const matchesQuery =
+                name.includes(searchQuery.toLowerCase()) ||
+                email.includes(searchQuery.toLowerCase());
+            const matchesRole = roleFilter === "ALL" || role === roleFilter;
 
-    const techniciansCount = users.filter((u) => u.role === "TECHNICIAN").length;
+            return matchesQuery && matchesRole;
+        });
+    }, [users, searchQuery, roleFilter]);
 
     return (
         <div className="space-y-8 text-white">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-3xl font-bold tracking-tight">Admin Overview 🛡️</h2>
+                    <h2 className="text-3xl font-bold tracking-tight">Manage Users 👥</h2>
                     <p className="text-zinc-400 mt-1 text-sm">
-                        Manage users, technician verification, and platform analytics.
+                        Control platform accounts, filter by role, and manage ban/unban status.
                     </p>
                 </div>
+
                 <button
-                    onClick={loadData}
+                    onClick={loadUsers}
                     disabled={loading}
                     className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-xs text-zinc-300 transition self-start sm:self-auto"
                 >
@@ -109,64 +91,28 @@ export default function AdminDashboard() {
                 </button>
             </div>
 
-            {/* Admin Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div className="p-6 rounded-3xl border border-white/10 bg-zinc-900/40 backdrop-blur-xl">
-                    <div className="flex items-center justify-between text-zinc-400">
-                        <span className="text-sm font-medium">Total Users</span>
-                        <Users className="w-5 h-5 text-cyan-400" />
-                    </div>
-                    <h3 className="text-4xl font-bold mt-2 text-cyan-400">
-                        {users.length || stats.totalUsers || 0}
-                    </h3>
-                </div>
-
-                <div className="p-6 rounded-3xl border border-white/10 bg-zinc-900/40 backdrop-blur-xl">
-                    <div className="flex items-center justify-between text-zinc-400">
-                        <span className="text-sm font-medium">Active Technicians</span>
-                        <Wrench className="w-5 h-5 text-emerald-400" />
-                    </div>
-                    <h3 className="text-4xl font-bold mt-2 text-emerald-400">
-                        {techniciansCount || stats.activeTechnicians || 0}
-                    </h3>
-                </div>
-
-                <div className="p-6 rounded-3xl border border-white/10 bg-zinc-900/40 backdrop-blur-xl">
-                    <div className="flex items-center justify-between text-zinc-400">
-                        <span className="text-sm font-medium">Total Bookings</span>
-                        <CalendarCheck className="w-5 h-5 text-blue-400" />
-                    </div>
-                    <h3 className="text-4xl font-bold mt-2 text-blue-400">
-                        {stats.totalBookings || 14}
-                    </h3>
-                </div>
-
-                <div className="p-6 rounded-3xl border border-white/10 bg-zinc-900/40 backdrop-blur-xl">
-                    <div className="flex items-center justify-between text-zinc-400">
-                        <span className="text-sm font-medium">Platform Revenue</span>
-                        <DollarSign className="w-5 h-5 text-fuchsia-400" />
-                    </div>
-                    <h3 className="text-4xl font-bold mt-2 text-fuchsia-400">
-                        ৳{stats.platformRevenue || stats.totalRevenue || "18,400"}
-                    </h3>
-                </div>
-            </div>
-
-            {/* User Moderation Section */}
-            <div className="rounded-3xl border border-white/10 bg-zinc-900/40 backdrop-blur-xl p-6 space-y-4">
+            <div className="rounded-3xl border border-white/10 bg-zinc-900/40 backdrop-blur-xl p-6 space-y-6">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div>
-                        <h3 className="text-xl font-bold">User Moderation & Access Control</h3>
-                        <p className="text-xs text-zinc-400">
-                            Inspect user roles, ban suspicious accounts, or restore access.
-                        </p>
+                    <div className="flex items-center gap-2">
+                        {["ALL", "CUSTOMER", "TECHNICIAN", "ADMIN"].map((role) => (
+                            <button
+                                key={role}
+                                onClick={() => setRoleFilter(role)}
+                                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${roleFilter === role
+                                    ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/40"
+                                    : "bg-white/5 text-zinc-400 border border-white/5 hover:text-white"
+                                    }`}
+                            >
+                                {role}
+                            </button>
+                        ))}
                     </div>
 
                     <div className="relative w-full sm:w-72">
                         <Search className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                         <input
                             type="text"
-                            placeholder="Search user, email, role..."
+                            placeholder="Search by name or email..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="w-full pl-10 pr-4 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-500"
@@ -175,21 +121,21 @@ export default function AdminDashboard() {
                 </div>
 
                 {loading ? (
-                    <div className="py-16 flex flex-col items-center justify-center gap-2 text-zinc-400">
+                    <div className="py-20 flex flex-col items-center justify-center gap-2 text-zinc-400">
                         <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
-                        <span className="text-xs">Fetching users from system...</span>
+                        <span className="text-xs">Fetching users...</span>
                     </div>
                 ) : filteredUsers.length === 0 ? (
-                    <div className="text-center py-12 text-zinc-500 text-sm border border-dashed border-white/10 rounded-2xl flex flex-col items-center gap-2">
+                    <div className="text-center py-16 text-zinc-500 text-sm border border-dashed border-white/10 rounded-2xl flex flex-col items-center gap-2">
                         <AlertCircle className="w-6 h-6 text-zinc-600" />
-                        No accounts matched your search criteria.
+                        No users matched your filter criteria.
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full text-left text-sm text-zinc-300">
                             <thead className="border-b border-white/10 text-xs uppercase text-zinc-400 bg-white/5">
                                 <tr>
-                                    <th className="px-6 py-4 rounded-l-xl">User</th>
+                                    <th className="px-6 py-4 rounded-l-xl">User Details</th>
                                     <th className="px-6 py-4">Role</th>
                                     <th className="px-6 py-4">Status</th>
                                     <th className="px-6 py-4 text-right rounded-r-xl">Action</th>

@@ -1,9 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState, useEffect, FormEvent } from "react";
 import Link from "next/link";
-import { toast } from "sonner";
-import { Wrench, Eye, EyeOff, ArrowRight } from "lucide-react";
+import { Wrench, Eye, EyeOff, ArrowRight, Loader2 } from "lucide-react";
 import { loginAction } from "../_actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,33 +22,62 @@ export default function LoginPage() {
         setMounted(true);
     }, []);
 
+    const parseRoleFromToken = (token: string): string => {
+        try {
+            const base64Url = token.split(".")[1];
+            if (!base64Url) return "CUSTOMER";
+            const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+            const jsonPayload = decodeURIComponent(
+                atob(base64)
+                    .split("")
+                    .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+                    .join("")
+            );
+            const decoded = JSON.parse(jsonPayload);
+            return (decoded.role || decoded.user?.role || "CUSTOMER").toUpperCase();
+        } catch (e) {
+            console.error("JWT Decode error:", e);
+            return "CUSTOMER";
+        }
+    };
+
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
         setLoading(true);
 
         try {
-            // ১. ব্যাকএন্ডে রিকোয়েস্ট পাঠানো
             const res = await loginAction(formData);
-
-            // কনসোলে রেসপন্স চেক করার জন্য (ব্রাউজারের Inspect > Console এ দেখতে পাবেন)
             console.log("Login Response:", res);
 
-            if (res.success && res.accessToken) {
-                // ২. টোস্ট বা অন্য কিছুর জন্য ওয়েট না করে সরাসরি কুকি সেট করে দেওয়া
-                document.cookie = `token=${res.accessToken}; path=/; max-age=604800; secure`;
-                document.cookie = `role=${res.role || "CUSTOMER"}; path=/; max-age=604800; secure`;
+            if (res.success && (res.accessToken || (res as any).token)) {
+                const token = res.accessToken || (res as any).token;
 
-                // ৩. কোনো setTimeout ছাড়া ইনস্ট্যান্ট রিডাইরেক্ট
-                const userRole = res.role || "CUSTOMER";
-                if (userRole === "ADMIN") {
-                    window.location.replace("/admin-dashboard");
-                } else if (userRole === "TECHNICIAN") {
-                    window.location.replace("/technician-dashboard");
+                // Determine accurate role (Action response > Decoded Token)
+                let resolvedRole = res.role || (res as any).user?.role;
+                if (!resolvedRole || resolvedRole === "CUSTOMER") {
+                    resolvedRole = parseRoleFromToken(token);
+                }
+                resolvedRole = resolvedRole.toUpperCase();
+
+                // LocalStorage backup for persistent client state
+                localStorage.setItem("token", token);
+                localStorage.setItem("user_role", resolvedRole);
+
+                // Set cookies without strict secure flag on localhost so HTTP accepts it
+                const isProd = window.location.protocol === "https:";
+                const secureFlag = isProd ? "; Secure" : "";
+                document.cookie = `token=${token}; path=/; max-age=604800; SameSite=Lax${secureFlag}`;
+                document.cookie = `role=${resolvedRole}; path=/; max-age=604800; SameSite=Lax${secureFlag}`;
+
+                // Instant Role-based redirection
+                if (resolvedRole === "ADMIN") {
+                    window.location.href = "/admin-dashboard";
+                } else if (resolvedRole === "TECHNICIAN") {
+                    window.location.href = "/technician-dashboard";
                 } else {
-                    window.location.replace("/customer-dashboard");
+                    window.location.href = "/customer-dashboard";
                 }
             } else {
-                // টোস্টের বদলে ব্রাউজারের ডিফল্ট অ্যালার্ট
                 alert(res.message || "Invalid email or password");
                 setLoading(false);
             }
@@ -132,7 +161,13 @@ export default function LoginPage() {
                             className="w-full h-12 text-base font-semibold shadow-lg gap-2 bg-gradient-to-r from-indigo-500 to-fuchsia-500 text-white"
                             disabled={loading}
                         >
-                            {loading ? "Signing in..." : <>Sign In <ArrowRight className="h-4 w-4" /></>}
+                            {loading ? (
+                                <span className="flex items-center gap-2">
+                                    <Loader2 className="h-4 w-4 animate-spin" /> Signing in...
+                                </span>
+                            ) : (
+                                <>Sign In <ArrowRight className="h-4 w-4" /></>
+                            )}
                         </Button>
                     </form>
                 </div>
