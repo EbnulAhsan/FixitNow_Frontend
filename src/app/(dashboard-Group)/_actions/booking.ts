@@ -4,27 +4,26 @@
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+
+const RAW_URL =
+    process.env.NEXT_PUBLIC_API_URL ||
+    process.env.BACKEND_URL ||
+    process.env.NEXT_PUBLIC_BACKEND_URL ||
+    "https://fixitnow-backend-rkod.onrender.com/api";
+
+
+const CLEAN_BASE = RAW_URL.replace(/\/+$/, "");
+const BACKEND_URL = CLEAN_BASE.endsWith("/api")
+    ? CLEAN_BASE.slice(0, -4)
+    : CLEAN_BASE;
 
 const isUUID = (id?: string) =>
     Boolean(id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
 
-// Public and Server Action which is Fetch for all services
+// Public and Server Action to fetch all services
 export async function getAllServicesAction() {
     try {
-        
-        const envUrl = process.env.NEXT_PUBLIC_API_URL || process.env.BACKEND_URL;
-        const base = (envUrl && envUrl.trim() !== "")
-            ? envUrl.replace(/\/+$/, "")
-            : "https://fixitnow-backend-rkod.onrender.com/api";
-
-        const endpoint = base.endsWith("/services")
-            ? base
-            : base.endsWith("/api")
-                ? `${base}/services`
-                : `${base}/api/services`;
-
-        console.log("Fetching services from:", endpoint);
+        const endpoint = `${BACKEND_URL}/api/services`;
 
         const response = await fetch(endpoint, {
             method: "GET",
@@ -48,17 +47,23 @@ export async function getAllServicesAction() {
     }
 }
 
-// Fetch single technician profile data form the schema and database 
+// Fetch single technician profile data
 export async function getTechnicianByIdAction(technicianId: string) {
     try {
         let res = await fetch(`${BACKEND_URL}/api/technicians/${technicianId}`, {
             method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+            },
             cache: "no-store",
         });
 
         if (!res.ok) {
             res = await fetch(`${BACKEND_URL}/api/users/${technicianId}`, {
                 method: "GET",
+                headers: {
+                    "Content-Type": "application/json",
+                },
                 cache: "no-store",
             });
         }
@@ -71,7 +76,7 @@ export async function getTechnicianByIdAction(technicianId: string) {
     }
 }
 
-// get customer dashboard booking list 
+// Get customer dashboard booking list 
 export async function getCustomerBookingsAction() {
     try {
         const cookieStore = await cookies();
@@ -122,7 +127,7 @@ export async function getCustomerBookingsAction() {
     }
 }
 
-// Booking create action for technician profile and services as well 
+// Booking create action
 export async function createBookingAction(payload: {
     serviceId?: string;
     technicianId?: string;
