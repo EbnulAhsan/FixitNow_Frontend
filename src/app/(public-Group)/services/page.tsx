@@ -23,7 +23,7 @@ import { getAllCategoriesAction } from "@/app/(dashboard-Group)/_actions/admin";
 
 // Category onujayi dynamic icon & color mapping
 const getCategoryTheme = (categoryName: string = "") => {
-    const cat = categoryName.toLowerCase();
+    const cat = (categoryName || "").toLowerCase();
     if (cat.includes("cool") || cat.includes("ac")) {
         return { icon: ThermometerSnowflake, color: "text-cyan-400", bgColor: "bg-cyan-500/10" };
     }
@@ -50,32 +50,43 @@ export default function ServicesPage() {
     const [selectedCategory, setSelectedCategory] = useState("All");
 
     useEffect(() => {
+        let isMounted = true;
+
         async function loadData() {
             setLoading(true);
             try {
-                const [servicesRes, categoriesRes] = await Promise.all([
+                // দুটি কলকে ইন্ডিপেন্ডেন্ট রাখা হলো যাতে একটি ফেইল করলেও অন্যটি পেজ ক্র্যাশ না করায়
+                const [servicesRes, categoriesRes] = await Promise.allSettled([
                     getAllServicesAction(),
                     getAllCategoriesAction(),
                 ]);
 
-                if (servicesRes.success && Array.isArray(servicesRes.data)) {
-                    setServices(servicesRes.data);
+                if (!isMounted) return;
+
+                // Services Data Process
+                if (servicesRes.status === "fulfilled" && servicesRes.value?.success && Array.isArray(servicesRes.value.data)) {
+                    setServices(servicesRes.value.data);
                 }
 
-                if (categoriesRes.success && Array.isArray(categoriesRes.data)) {
-                    const categoryNames = categoriesRes.data
-                        .map((c: any) => c.name)
+                // Categories Data Process
+                if (categoriesRes.status === "fulfilled" && categoriesRes.value?.success && Array.isArray(categoriesRes.value.data)) {
+                    const categoryNames = categoriesRes.value.data
+                        .map((c: any) => (typeof c === "string" ? c : c?.name))
                         .filter(Boolean);
                     setCategories(["All", ...Array.from(new Set(categoryNames))]);
                 }
             } catch (err) {
-                console.error("Failed to load services data:", err);
+                console.error("Failed to load services page data:", err);
             } finally {
-                setLoading(false);
+                if (isMounted) setLoading(false);
             }
         }
 
         loadData();
+
+        return () => {
+            isMounted = false;
+        };
     }, []);
 
     // Real-time filtering
@@ -164,7 +175,6 @@ export default function ServicesPage() {
                                 const theme = getCategoryTheme(categoryName);
                                 const Icon = theme.icon;
 
-                                // Booking recipient target ID
                                 const targetId =
                                     service.technicianId ||
                                     service.technician?.id ||

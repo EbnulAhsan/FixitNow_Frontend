@@ -4,8 +4,24 @@
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
+const getValidBackendUrl = () => {
+    const candidate =
+        process.env.BACKEND_URL ||
+        process.env.NEXT_PUBLIC_BACKEND_URL ||
+        process.env.NEXT_PUBLIC_API_URL ||
+        "";
+
+
+    if (!candidate || candidate.includes("127.0.0.1") || candidate.includes("localhost")) {
+        return "https://fixitnow-backend-rkod.onrender.com";
+    }
+
+
+    return candidate.replace(/\/+$/, "").replace(/\/api\/?$/, "");
+};
+
+const BACKEND_URL = getValidBackendUrl();
 
 export async function getAdminStatsAction() {
     try {
@@ -55,8 +71,7 @@ export async function getAllUsersAction() {
     }
 }
 
-
-// Ban and  Unban User Status Toggle
+// Ban and Unban User Status Toggle
 export async function toggleUserStatusAction(userId: string, currentStatus: string) {
     try {
         const cookieStore = await cookies();
@@ -95,12 +110,21 @@ export async function getAllCategoriesAction() {
     try {
         const res = await fetch(`${BACKEND_URL}/api/categories`, {
             method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+            },
             cache: "no-store",
         });
+
+        if (!res.ok) {
+            return { success: false, data: [] };
+        }
+
         const data = await res.json();
         const list = Array.isArray(data) ? data : data?.data || [];
-        return { success: res.ok, data: list };
+        return { success: true, data: list };
     } catch (err: any) {
+        console.error("Get categories error:", err);
         return { success: false, data: [] };
     }
 }
