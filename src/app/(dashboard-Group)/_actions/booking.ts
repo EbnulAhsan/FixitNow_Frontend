@@ -5,17 +5,23 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 
 
-const RAW_URL =
-    process.env.NEXT_PUBLIC_API_URL ||
-    process.env.BACKEND_URL ||
-    process.env.NEXT_PUBLIC_BACKEND_URL ||
-    "https://fixitnow-backend-rkod.onrender.com/api";
+const getValidBackendUrl = () => {
+    const candidate =
+        process.env.BACKEND_URL ||
+        process.env.NEXT_PUBLIC_BACKEND_URL ||
+        process.env.NEXT_PUBLIC_API_URL ||
+        "";
 
 
-const CLEAN_BASE = RAW_URL.replace(/\/+$/, "");
-const BACKEND_URL = CLEAN_BASE.endsWith("/api")
-    ? CLEAN_BASE.slice(0, -4)
-    : CLEAN_BASE;
+    if (!candidate || candidate.includes("127.0.0.1") || candidate.includes("localhost")) {
+        return "https://fixitnow-backend-rkod.onrender.com";
+    }
+
+    // অতিরিক্ত স্ল্যাশ এবং ট্রেইলিং /api বাদ দিয়ে ক্লিন বেস ডোমেন রাখা
+    return candidate.replace(/\/+$/, "").replace(/\/api\/?$/, "");
+};
+
+const BACKEND_URL = getValidBackendUrl();
 
 const isUUID = (id?: string) =>
     Boolean(id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
@@ -24,6 +30,7 @@ const isUUID = (id?: string) =>
 export async function getAllServicesAction() {
     try {
         const endpoint = `${BACKEND_URL}/api/services`;
+        console.log("Fetching services from:", endpoint);
 
         const response = await fetch(endpoint, {
             method: "GET",
