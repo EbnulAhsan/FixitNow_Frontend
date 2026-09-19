@@ -62,7 +62,7 @@ export default function TechniciansPage() {
                 const res = await getAllServicesAction();
                 const services: ServiceResponse[] = res.data || [];
 
-                // ১ জন টেকনিশিয়ানকে একবারই রাখার জন্য গ্রুপিং
+
                 const techMap = new Map<string, TechnicianCardItem>();
                 const categorySet = new Set<string>();
 
@@ -172,7 +172,7 @@ export default function TechniciansPage() {
                 </div>
 
                 {loading ? (
-                    /* স্কেলিটন লোডার গ্রিড */
+
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                         {[1, 2, 3, 4, 5, 6].map((n) => (
                             <div

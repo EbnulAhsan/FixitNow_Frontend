@@ -65,7 +65,7 @@ export default function ServicesSection() {
     return (
         <section className="py-28 relative z-10 bg-zinc-950 overflow-hidden">
 
-            {/* 🌟 Hero Section এর সাথে ম্যাচিং ব্যাকগ্রাউন্ড গ্লোয়িং অর্বস ও গ্রিড প্যাটার্ন 🌟 */}
+
             <div className="absolute top-[20%] right-[-10%] h-[35rem] w-[35rem] animate-pulse rounded-full bg-cyan-500/10 blur-[130px] duration-10000 pointer-events-none" />
             <div className="absolute bottom-[-10%] left-[-10%] h-[40rem] w-[40rem] animate-pulse rounded-full bg-blue-600/15 blur-[140px] duration-10000 pointer-events-none" style={{ animationDelay: '3s' }} />
 

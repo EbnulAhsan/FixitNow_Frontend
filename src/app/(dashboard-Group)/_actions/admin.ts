@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
-// Platform Statistics
+
 export async function getAdminStatsAction() {
     try {
         const cookieStore = await cookies();
@@ -26,7 +26,7 @@ export async function getAdminStatsAction() {
     }
 }
 
-// User Management (All Users)
+// User Management for all kind of users 
 export async function getAllUsersAction() {
     try {
         const cookieStore = await cookies();
@@ -55,9 +55,8 @@ export async function getAllUsersAction() {
     }
 }
 
-// Ban / Unban User Status Toggle
-// Ban / Unban User Status Toggle
-// Ban / Unban User Status Toggle
+
+// Ban and  Unban User Status Toggle
 export async function toggleUserStatusAction(userId: string, currentStatus: string) {
     try {
         const cookieStore = await cookies();
@@ -91,7 +90,7 @@ export async function toggleUserStatusAction(userId: string, currentStatus: stri
     }
 }
 
-// Category Management Actions
+// Category Management Actions for all kind of categories
 export async function getAllCategoriesAction() {
     try {
         const res = await fetch(`${BACKEND_URL}/api/categories`, {

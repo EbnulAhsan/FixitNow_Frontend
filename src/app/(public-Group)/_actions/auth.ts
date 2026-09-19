@@ -23,15 +23,15 @@ export async function loginAction(formData: { email: string; password: string })
             };
         }
 
-        // আপনার পোস্টম্যান রেসপন্স অনুযায়ী accessToken টি data.data.accessToken এ আসছে
+
         const accessToken = data.data?.accessToken || data.token;
 
         if (!accessToken) {
             return { success: false, message: "Token not received from server" };
         }
 
-        // JWT টোকেন ডিকোড করে তার ভেতর থেকে রোল (Role) বের করে নেওয়া (Base64 decode)
-        let role = "CUSTOMER"; // ডিফল্ট কাস্টমার ধরে নিলাম
+
+        let role = "CUSTOMER";
         try {
             const base64Url = accessToken.split(".")[1];
             const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
@@ -49,7 +49,7 @@ export async function loginAction(formData: { email: string; password: string })
             console.error("Failed to decode token", e);
         }
 
-        // কুকিতে টোকেন এবং রোল সেভ করা
+
         const cookieStore = await cookies();
         cookieStore.set({
             name: "token",

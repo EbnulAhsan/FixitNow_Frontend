@@ -94,7 +94,7 @@ export default function TechnicianProfilePage() {
                     setSelectedService(matchedServices[0]);
                 }
 
-                // টেকনিশিয়ানের ড্যাশবোর্ড থেকে সেভ করা Active Slots রিড করা
+
                 if (typeof window !== "undefined") {
                     const savedSlots = localStorage.getItem("tech_availability_slots");
                     if (savedSlots) {
@@ -120,7 +120,7 @@ export default function TechnicianProfilePage() {
         fetchTechnicianAndServices();
     }, [technicianParamId]);
 
-    // ইউজার ডেট পরিবর্তন করলে চেক করবে টেকনিশিয়ান ঐদিন OFF কি না
+
     const handleDateChange = (dateVal: string) => {
         setSelectedDate(dateVal);
         if (!dateVal) return;

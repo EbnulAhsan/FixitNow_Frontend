@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
-// Technician-er assigned bookings fetch kora
+// Technician assigned bookings fetch 
 export async function getTechnicianBookingsAction() {
     try {
         const cookieStore = await cookies();
@@ -43,7 +43,7 @@ export async function getTechnicianBookingsAction() {
     }
 }
 
-// Technician booking status update kora (ACCEPTED, DECLINED, IN_PROGRESS, COMPLETED)
+// Technician booking status update 
 export async function updateBookingStatusAction(bookingId: string, status: string) {
     try {
         const cookieStore = await cookies();
@@ -85,7 +85,7 @@ export async function updateBookingStatusAction(bookingId: string, status: strin
     }
 }
 
-// Public/Customer-er jonne sob technicians list kora (Dynamic ID pawar jonno)
+// Getting together Public and Customer technicians list for dynamic Id 
 export async function getAllTechniciansAction() {
     try {
         const response = await fetch(`${BACKEND_URL}/api/technicians`, {
@@ -101,7 +101,7 @@ export async function getAllTechniciansAction() {
     }
 }
 
-// Technician Availability fetch kora
+// Technician Availability fetch 
 export async function getTechnicianAvailabilityAction() {
     try {
         const cookieStore = await cookies();
@@ -125,7 +125,7 @@ export async function getTechnicianAvailabilityAction() {
     }
 }
 
-// Technician Availability update kora
+// Technician Availability update 
 export async function updateTechnicianAvailabilityAction(payload: {
     workingDays: string[];
     timeSlots: string[];

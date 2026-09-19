@@ -9,7 +9,7 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:500
 const isUUID = (id?: string) =>
     Boolean(id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
 
-// Public/Server Action: Fetch all services
+// Public and Server Action which is Fetch for all services
 export async function getAllServicesAction() {
     try {
         const response = await fetch(`${BACKEND_URL}/api/services`, {
@@ -26,7 +26,7 @@ export async function getAllServicesAction() {
     }
 }
 
-// Fetch single technician profile data
+// Fetch single technician profile data form the schema and database 
 export async function getTechnicianByIdAction(technicianId: string) {
     try {
         let res = await fetch(`${BACKEND_URL}/api/technicians/${technicianId}`, {
@@ -49,7 +49,7 @@ export async function getTechnicianByIdAction(technicianId: string) {
     }
 }
 
-// Customer dashboard-er booking list get kora
+// get customer dashboard booking list 
 export async function getCustomerBookingsAction() {
     try {
         const cookieStore = await cookies();
@@ -100,7 +100,7 @@ export async function getCustomerBookingsAction() {
     }
 }
 
-// Booking create korar action (Supports both technician profile and service booking flows)
+// Booking create action for technician profile and services as well 
 export async function createBookingAction(payload: {
     serviceId?: string;
     technicianId?: string;
@@ -174,7 +174,7 @@ export async function createBookingAction(payload: {
     }
 }
 
-// Booking cancel korar action
+// Booking cancel action
 export async function cancelBookingAction(bookingId: string) {
     try {
         const cookieStore = await cookies();

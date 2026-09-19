@@ -5,7 +5,7 @@ import { cookies } from "next/headers";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
-// 1. Payment Intent create kora (Stripe clientSecret ante)
+// 1. creating payment intent for customer using stripe 
 export async function createPaymentIntentAction(bookingId: string) {
     try {
         const cookieStore = await cookies();
@@ -65,7 +65,7 @@ export async function createPaymentIntentAction(bookingId: string) {
     }
 }
 
-// 2. Stripe payment confirm hole backend-e status update kora
+// 2. Stripe payment confirmation action client side 
 export async function confirmBookingPaymentAction(bookingId: string, paymentIntentId: string) {
     try {
         const cookieStore = await cookies();
@@ -112,7 +112,7 @@ export async function confirmBookingPaymentAction(bookingId: string, paymentInte
 }
 
 
-// 3. customer dashboard payment history added 
+// 3. customer dashboard payment history added for the technician  
 
 export async function getCustomerPaymentsAction() {
     try {

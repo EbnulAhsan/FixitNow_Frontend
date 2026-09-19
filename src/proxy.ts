@@ -29,7 +29,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
 }
 
-// Next.js convention-e proxy function name chaile export alias:
+
 export { middleware as proxy };
 
 export const config = {

@@ -7,7 +7,7 @@ import { Wrench, ShieldCheck, Mail, Phone, MapPin } from "lucide-react";
 export default function Footer() {
     const pathname = usePathname();
 
-    // Login ba Register page hole Footer render hobe na
+
     if (pathname === "/login" || pathname === "/register") {
         return null;
     }

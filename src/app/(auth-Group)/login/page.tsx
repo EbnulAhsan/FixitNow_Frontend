@@ -52,7 +52,7 @@ export default function LoginPage() {
             if (res.success && (res.accessToken || (res as any).token)) {
                 const token = res.accessToken || (res as any).token;
 
-                // Determine accurate role (Action response > Decoded Token)
+                // Determine accurate role 
                 let resolvedRole = res.role || (res as any).user?.role;
                 if (!resolvedRole || resolvedRole === "CUSTOMER") {
                     resolvedRole = parseRoleFromToken(token);
@@ -108,7 +108,7 @@ export default function LoginPage() {
                         <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-fuchsia-400 to-cyan-400">Services & Bookings.</span>
                     </h1>
                 </div>
-                <div className="relative z-10 text-sm text-zinc-500">© FixItNow Platform.</div>
+                <div className="relative z-10 text-sm text-zinc-500">© FixItNow Platform. All rights reserved by Ebnul Ahsan</div>
             </div>
 
             <div className="flex w-full lg:w-1/2 items-center justify-center p-6 sm:p-12 relative z-10">
