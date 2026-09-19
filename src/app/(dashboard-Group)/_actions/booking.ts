@@ -12,7 +12,14 @@ const isUUID = (id?: string) =>
 // Public and Server Action which is Fetch for all services
 export async function getAllServicesAction() {
     try {
-        const response = await fetch(`${BACKEND_URL}/api/services`, {
+        const baseUrl = (process.env.NEXT_PUBLIC_API_URL || "https://fixitnow-backend-rkod.onrender.com/api").replace(/\/$/, "");
+
+       
+        const finalUrl = baseUrl.endsWith("/api")
+            ? `${baseUrl}/services`
+            : `${baseUrl}/api/services`;
+
+        const response = await fetch(finalUrl, {
             method: "GET",
             cache: "no-store",
         });
