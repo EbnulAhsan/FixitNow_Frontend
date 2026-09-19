@@ -21,9 +21,17 @@ import { Button } from "@/components/ui/button";
 import { getAllServicesAction } from "@/app/(dashboard-Group)/_actions/booking";
 import { getAllCategoriesAction } from "@/app/(dashboard-Group)/_actions/admin";
 
+// Safe string converter to prevent ".toLowerCase is not a function"
+const toSafeString = (val: any): string => {
+    if (!val) return "";
+    if (typeof val === "string") return val;
+    if (typeof val === "object") return val.name || val.title || "";
+    return String(val);
+};
+
 // Category onujayi dynamic icon & color mapping
-const getCategoryTheme = (categoryName: string = "") => {
-    const cat = (categoryName || "").toLowerCase();
+const getCategoryTheme = (categoryInput: any = "") => {
+    const cat = toSafeString(categoryInput).toLowerCase();
     if (cat.includes("cool") || cat.includes("ac")) {
         return { icon: ThermometerSnowflake, color: "text-cyan-400", bgColor: "bg-cyan-500/10" };
     }
@@ -55,7 +63,6 @@ export default function ServicesPage() {
         async function loadData() {
             setLoading(true);
             try {
-                // দুটি কলকে ইন্ডিপেন্ডেন্ট রাখা হলো যাতে একটি ফেইল করলেও অন্যটি পেজ ক্র্যাশ না করায়
                 const [servicesRes, categoriesRes] = await Promise.allSettled([
                     getAllServicesAction(),
                     getAllCategoriesAction(),
@@ -63,15 +70,13 @@ export default function ServicesPage() {
 
                 if (!isMounted) return;
 
-                // Services Data Process
                 if (servicesRes.status === "fulfilled" && servicesRes.value?.success && Array.isArray(servicesRes.value.data)) {
                     setServices(servicesRes.value.data);
                 }
 
-                // Categories Data Process
                 if (categoriesRes.status === "fulfilled" && categoriesRes.value?.success && Array.isArray(categoriesRes.value.data)) {
                     const categoryNames = categoriesRes.value.data
-                        .map((c: any) => (typeof c === "string" ? c : c?.name))
+                        .map((c: any) => toSafeString(c))
                         .filter(Boolean);
                     setCategories(["All", ...Array.from(new Set(categoryNames))]);
                 }
@@ -89,17 +94,18 @@ export default function ServicesPage() {
         };
     }, []);
 
-    // Real-time filtering
+    // Real-time filtering with null-safe strings
     const filteredServices = useMemo(() => {
         return services.filter((service) => {
-            const title = (service.name || service.title || "").toLowerCase();
-            const desc = (service.description || "").toLowerCase();
-            const cat = (service.category?.name || service.category || "").toLowerCase();
+            const title = toSafeString(service.name || service.title).toLowerCase();
+            const desc = toSafeString(service.description).toLowerCase();
+            const cat = toSafeString(service.category?.name || service.category).toLowerCase();
 
-            const matchesSearch =
-                title.includes(searchTerm.toLowerCase()) || desc.includes(searchTerm.toLowerCase());
-            const matchesCategory =
-                selectedCategory === "All" || cat === selectedCategory.toLowerCase();
+            const query = toSafeString(searchTerm).toLowerCase();
+            const matchesSearch = !query || title.includes(query) || desc.includes(query);
+
+            const activeCategory = toSafeString(selectedCategory).toLowerCase();
+            const matchesCategory = activeCategory === "all" || cat === activeCategory;
 
             return matchesSearch && matchesCategory;
         });
@@ -170,8 +176,7 @@ export default function ServicesPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                         {filteredServices.length > 0 ? (
                             filteredServices.map((service) => {
-                                const categoryName =
-                                    service.category?.name || service.category || "General";
+                                const categoryName = toSafeString(service.category?.name || service.category || "General");
                                 const theme = getCategoryTheme(categoryName);
                                 const Icon = theme.icon;
 
