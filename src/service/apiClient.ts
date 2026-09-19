@@ -1,6 +1,16 @@
 import { getCookie } from "cookies-next";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+
+const getSafeBaseUrl = () => {
+    const raw = process.env.NEXT_PUBLIC_API_URL || "";
+    if (!raw || raw.includes("localhost") || raw.includes("127.0.0.1")) {
+        return "https://fixitnow-backend-rkod.onrender.com/api";
+    }
+    const clean = raw.replace(/\/+$/, "");
+    return clean.endsWith("/api") ? clean : `${clean}/api`;
+};
+
+const API_BASE_URL = getSafeBaseUrl();
 
 interface FetchOptions extends RequestInit {
     params?: Record<string, string>;
@@ -9,13 +19,14 @@ interface FetchOptions extends RequestInit {
 export async function apiClient<T>(endpoint: string, options: FetchOptions = {}): Promise<T> {
     const { params, ...customOptions } = options;
 
+    // এন্ডপয়েন্টের শুরুর স্ল্যাশ ঠিক রাখা
+    const formattedEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+    let url = `${API_BASE_URL}${formattedEndpoint}`;
 
-    let url = `${API_BASE_URL}${endpoint}`;
     if (params) {
         const searchParams = new URLSearchParams(params);
         url += `?${searchParams.toString()}`;
     }
-
 
     const token = getCookie("token");
 
