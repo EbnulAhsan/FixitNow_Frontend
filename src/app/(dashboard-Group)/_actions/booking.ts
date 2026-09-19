@@ -12,21 +12,36 @@ const isUUID = (id?: string) =>
 // Public and Server Action which is Fetch for all services
 export async function getAllServicesAction() {
     try {
-        const baseUrl = (process.env.NEXT_PUBLIC_API_URL || "https://fixitnow-backend-rkod.onrender.com/api").replace(/\/$/, "");
+        
+        const envUrl = process.env.NEXT_PUBLIC_API_URL || process.env.BACKEND_URL;
+        const base = (envUrl && envUrl.trim() !== "")
+            ? envUrl.replace(/\/+$/, "")
+            : "https://fixitnow-backend-rkod.onrender.com/api";
 
-       
-        const finalUrl = baseUrl.endsWith("/api")
-            ? `${baseUrl}/services`
-            : `${baseUrl}/api/services`;
+        const endpoint = base.endsWith("/services")
+            ? base
+            : base.endsWith("/api")
+                ? `${base}/services`
+                : `${base}/api/services`;
 
-        const response = await fetch(finalUrl, {
+        console.log("Fetching services from:", endpoint);
+
+        const response = await fetch(endpoint, {
             method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+            },
             cache: "no-store",
         });
 
+        if (!response.ok) {
+            console.error("Backend responded with status:", response.status);
+            return { success: false, data: [] };
+        }
+
         const data = await response.json();
         const list = Array.isArray(data) ? data : data?.data || [];
-        return { success: response.ok, data: list };
+        return { success: true, data: list };
     } catch (error) {
         console.error("Fetch all services error:", error);
         return { success: false, data: [] };
