@@ -22,9 +22,17 @@ import {
 } from "lucide-react";
 import { getAllServicesAction } from "@/app/(dashboard-Group)/_actions/booking";
 
+// Safe string helper to prevent .toLowerCase() on non-strings
+const toSafeString = (val: any): string => {
+    if (!val) return "";
+    if (typeof val === "string") return val;
+    if (typeof val === "object") return val.name || val.title || "";
+    return String(val);
+};
+
 // Visual theme mapping based on category keywords
-const getServiceVisualTheme = (categoryName: string = "") => {
-    const cat = categoryName.toLowerCase();
+const getServiceVisualTheme = (categoryInput: any = "") => {
+    const cat = toSafeString(categoryInput).toLowerCase();
     if (cat.includes("cool") || cat.includes("ac")) {
         return {
             icon: ThermometerSnowflake,
@@ -87,23 +95,30 @@ export default function HomePage() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        let isCurrent = true;
         setMounted(true);
 
         async function loadDynamicServices() {
             setLoading(true);
             try {
                 const res = await getAllServicesAction();
-                if (res.success && Array.isArray(res.data)) {
+                if (isCurrent && res?.success && Array.isArray(res.data)) {
                     setServices(res.data.slice(0, 6));
                 }
             } catch (err) {
                 console.error("Failed to load homepage services:", err);
             } finally {
-                setLoading(false);
+                if (isCurrent) {
+                    setLoading(false);
+                }
             }
         }
 
         loadDynamicServices();
+
+        return () => {
+            isCurrent = false;
+        };
     }, []);
 
     return (
@@ -286,14 +301,12 @@ export default function HomePage() {
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                             {services.map((service, index) => {
-                                const categoryName = service.category?.name || service.category || "General";
+                                const categoryName = toSafeString(service.category?.name || service.category || "General");
                                 const theme = getServiceVisualTheme(categoryName);
                                 const Icon = theme.icon;
 
-                                // Combined unique key guaranteed never to collide
                                 const uniqueKey = `${service.id || service.serviceId || "service"}-${service.technicianId || ""}-${index}`;
 
-                                // Fallback route priority for booking
                                 const targetTechId =
                                     service.technicianId ||
                                     service.technician?.id ||
@@ -359,4 +372,4 @@ export default function HomePage() {
             </section>
         </div>
     );
-}
+}s
