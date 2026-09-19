@@ -1,11 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { AlertCircle, RotateCcw, Home } from "lucide-react";
-import Link from "next/link";
 
-export default function GlobalError({
+export default function Error({
     error,
     reset,
 }: {
@@ -13,38 +10,35 @@ export default function GlobalError({
     reset: () => void;
 }) {
     useEffect(() => {
-        console.error("Global boundary caught error:", error);
+        console.error("PAGE_CRASH_ERROR:", error);
     }, [error]);
 
     return (
-        <div className="min-h-screen bg-zinc-950 text-white flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
-            <div className="absolute h-96 w-96 rounded-full bg-rose-500/10 blur-[120px] pointer-events-none" />
-
-            <div className="relative z-10 max-w-md space-y-6">
-                <div className="h-20 w-20 mx-auto rounded-3xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center shadow-xl shadow-rose-500/10">
-                    <AlertCircle className="h-10 w-10 text-rose-400" />
-                </div>
-
-                <div className="space-y-2">
-                    <h2 className="text-2xl font-bold text-white">Something Went Wrong!</h2>
-                    <p className="text-zinc-400 text-sm">
-                        An unexpected error occurred while loading this section. Please try again or head back home.
-                    </p>
-                </div>
-
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
-                    <Button
-                        onClick={() => reset()}
-                        className="h-11 px-6 bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white rounded-xl gap-2 shadow-lg shadow-rose-500/20 font-semibold"
-                    >
-                        <RotateCcw className="h-4 w-4" /> Try Again
-                    </Button>
-                    <Link href="/">
-                        <Button variant="outline" className="h-11 px-6 border-white/10 text-white hover:bg-white/10 rounded-xl gap-2">
-                            <Home className="h-4 w-4" /> Go Home
-                        </Button>
-                    </Link>
-                </div>
+        <div className="min-h-screen bg-zinc-950 text-white flex flex-col items-center justify-center p-6 text-center">
+            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-2xl mb-4 text-red-400">
+                ⚠️ Runtime Crash Captured
+            </div>
+            <h2 className="text-2xl font-bold mb-2">Error Details:</h2>
+            <div className="bg-zinc-900 border border-red-500/30 rounded-xl p-4 max-w-2xl text-left text-red-300 text-sm font-mono overflow-auto mb-6 w-full">
+                <p className="font-bold text-red-400 mb-1">Message:</p>
+                <p className="mb-3">{error.message || "No error message available"}</p>
+                {error.digest && (
+                    <p className="text-xs text-zinc-500">Digest: {error.digest}</p>
+                )}
+            </div>
+            <div className="flex gap-4">
+                <button
+                    onClick={() => reset()}
+                    className="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white font-medium rounded-xl transition"
+                >
+                    Try Again
+                </button>
+                <button
+                    onClick={() => window.location.href = "/"}
+                    className="px-6 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white font-medium rounded-xl transition"
+                >
+                    Go Home
+                </button>
             </div>
         </div>
     );
